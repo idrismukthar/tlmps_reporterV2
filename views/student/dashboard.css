@@ -1,0 +1,213 @@
+
+:root {
+	--report-purple: #6a0dad;
+	--report-deep: #2d0a4d;
+	--report-lilac: #f3edff;
+	--report-lemon: #a7d129;
+}
+
+.principal-font {
+	font-family: 'Dancing Script', cursive;
+	font-size: 14px;
+	color: #1a1a1a;
+	margin: 5px 0;
+	line-height: 1.3;
+}
+
+.report-card {
+	border-color: var(--report-purple);
+	box-shadow: 0 18px 45px rgba(45, 10, 77, .18);
+}
+
+.report-card .header,
+.report-card .title-banner {
+	border-color: var(--report-purple);
+}
+
+.report-card .title-banner {
+	background: var(--report-purple);
+}
+
+.report-card .section-title {
+	display: block;
+	margin: 0 0 6px;
+	padding: 5px 8px;
+	background: var(--report-purple) !important;
+	border: 0 !important;
+	color: #fff;
+	font-size: 10px;
+	font-weight: 900;
+	line-height: 1.2;
+}
+
+.report-card .main-table > .section-title {
+	margin-top: 0;
+	margin-bottom: 8px;
+	text-align: left;
+}
+
+.report-card .summary-box > .section-title {
+	margin: -6px -6px 6px;
+}
+
+.report-card .summary-box {
+	border-color: var(--report-purple);
+}
+
+.report-card .summary-box[style*="fdf2ff"] {
+	background: var(--report-lilac) !important;
+}
+
+.report-card .student-photo {
+	border: 2px solid var(--report-purple);
+}
+
+.report-card .no-print-btn {
+	background: var(--report-purple);
+	box-shadow: 0 5px 14px rgba(106, 13, 173, .25);
+}
+
+.report-card .no-print-btn:hover {
+	background: var(--report-deep);
+}
+
+/* Keep the downloadable report to one A4 sheet. */
+.report-card {
+	width: 210mm !important;
+	height: 297mm !important;
+	min-height: 0 !important;
+	max-height: 297mm !important;
+	overflow: hidden !important;
+	padding: 9mm !important;
+}
+
+.report-card .header {
+	padding-bottom: 4px !important;
+}
+
+.report-card .school-logo {
+	width: 65px !important;
+	height: 65px !important;
+}
+
+.report-card .student-photo {
+	width: 80px !important;
+	height: 90px !important;
+}
+
+.report-card .title-banner,
+.report-card .section-title {
+	box-sizing: border-box !important;
+	height: 23px !important;
+	min-height: 23px !important;
+	margin: 5px 0 !important;
+	padding: 5px 8px !important;
+	background: var(--report-purple) !important;
+	color: #fff !important;
+	font-size: 10px !important;
+	font-weight: 900 !important;
+	line-height: 13px !important;
+	text-align: left !important;
+}
+
+.report-card .info-bar {
+	gap: 8px !important;
+	margin: 5px 0 !important;
+	padding: 6px !important;
+	font-size: 10px !important;
+	line-height: 12px !important;
+}
+
+.report-card .performance-section {
+	gap: 8px !important;
+	margin-top: 5px !important;
+}
+
+.report-card table th,
+.report-card table td {
+	padding: 3px 5px !important;
+	font-size: 10px !important;
+	line-height: 12px !important;
+}
+
+.report-card .summary-box {
+	padding: 6px !important;
+}
+
+.report-card .summary-box > .section-title {
+	margin: -6px -6px 6px !important;
+}
+
+.report-card .side-stats-container .section-title {
+	font-size: 8px !important;
+	white-space: nowrap !important;
+}
+
+.report-card .summary-box p {
+	margin: 2px 0 !important;
+	font-size: 10px !important;
+}
+
+.report-card .comment-area {
+	gap: 10px !important;
+	margin-top: 8px !important;
+}
+
+.report-card .comment-box {
+	height: 100px !important;
+	padding: 6px !important;
+	font-size: 10px !important;
+}
+
+.report-card .teacher-font,
+.report-card .principal-font {
+	font-size: 13px !important;
+	margin: 5px 0 !important;
+}
+
+.report-card .footer-date {
+	margin-top: 8px !important;
+	padding-top: 3px !important;
+	font-size: 8px !important;
+}
+
+@media print {
+	.report-card {
+		page-break-after: avoid !important;
+		page-break-inside: avoid !important;
+	}
+}
+
+@media (max-width: 760px) {
+	body { padding: 0; }
+	.no-print-btn { width: calc(100% - 24px); }
+	.report-card {
+		width: 100%;
+		padding: 16px;
+		border-width: 1px;
+	}
+	.report-card .header {
+		gap: 8px;
+	}
+	.report-card .school-info h2 { font-size: 13px; }
+	.report-card .school-info p { font-size: 7px; }
+	.report-card .student-photo { width: 58px; height: 70px; }
+	.report-card .info-bar,
+	.report-card .performance-section,
+	.report-card .comment-area {
+		display: block;
+	}
+	.report-card .info-bar > div,
+	.report-card .side-stats-container,
+	.report-card .comment-box {
+		margin-bottom: 8px;
+	}
+	.report-card .main-table { overflow-x: auto; }
+	.report-card .main-table table { min-width: 610px; }
+}
+
+@media print {
+	body { padding: 0; background: #fff; }
+	.no-print-btn { display: none; }
+	.report-card { width: 210mm; box-shadow: none; }
+}

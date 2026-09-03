@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Teacher Login - TLMPS</title>
+	<style>
+		:root { font-family: Arial, sans-serif; color: #17202a; background: #eef3f5; }
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+		.card { width: min(100%, 460px); background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 8px 24px #18364218; }
+		h1 { margin: 0 0 8px; color: #0b5d67; }
+		p { color: #66757d; }
+		.field { margin: 18px 0; }
+		label { display: block; font-weight: bold; margin-bottom: 7px; }
+		select, input { width: 100%; padding: 13px; border: 1px solid #c7d1d5; border-radius: 6px; font-size: 16px; }
+		.password-wrap { position: relative; }
+		.password-wrap input { padding-right: 48px; }
+		.password-toggle { position: absolute; top: 50%; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 4px; background: transparent; color: #0b5d67; cursor: pointer; transform: translateY(-50%); font-size: 18px; }
+		.password-toggle:focus-visible { outline: 2px solid #0b7a75; outline-offset: 2px; }
+		.btn { width: 100%; border: 0; border-radius: 6px; background: #0b7a75; color: white; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; }
+		.error { padding: 10px; background: #fff0f0; color: #a52828; border-left: 4px solid #d64545; margin: 16px 0; }
+		.back { color: #0b7a75; text-decoration: none; }
+	</style>
+</head>
+<body>
+	<main class="card">
+		<a class="back" href="/">&larr; Portal home</a>
+		<h1>Teacher Score Entry</h1>
+		<p>Choose your class and subject to enter results.</p>
+		<% if (error) { %><div class="error"><%= error %></div><% } %>
+		<form method="POST" action="/teacher/login">
+			<div class="field">
+				<label for="class_name">Class</label>
+				<select id="class_name" name="class_name" required>
+					<option value="">Select class</option>
+					<% classes.forEach(cls => { %><option value="<%= cls %>"><%= cls.slice(0,3) %> <%= cls.slice(3) %></option><% }) %>
+				</select>
+			</div>
+			<div class="field">
+				<label for="subject_id">Subject</label>
+				<select id="subject_id" name="subject_id" required>
+					<option value="">Select subject</option>
+					<% subjects.forEach(subject => { %><option value="<%= subject.subject_id %>" data-category="<%= subject.level_category %>"><%= subject.subject_name %></option><% }) %>
+				</select>
+			</div>
+			<div class="field">
+				<label for="password">Class password</label>
+				<div class="password-wrap">
+					<input id="password" type="password" name="password" autocomplete="current-password" spellcheck="false" required>
+					<button class="password-toggle" type="button" aria-label="Show password" aria-pressed="false">&#128065;</button>
+				</div>
+			</div>
+			<button class="btn" type="submit">Login to Score Entry</button>
+		</form>
+	</main>
+	<script>
+		const classSelect = document.getElementById('class_name');
+		const subjectSelect = document.getElementById('subject_id');
+		const passwordInput = document.getElementById('password');
+		const passwordToggle = document.querySelector('.password-toggle');
+		const allSubjects = [...subjectSelect.options];
+		const savedClass = localStorage.getItem('teacherLoginClass');
+
+		function filterSubjects(subjectToSelect = '') {
+			const category = classSelect.value.startsWith('SSS') ? 'SSS' : 'JSS';
+			subjectSelect.innerHTML = '';
+			allSubjects.forEach(option => {
+				if (!option.value || option.dataset.category === category) subjectSelect.appendChild(option.cloneNode(true));
+			});
+			if ([...subjectSelect.options].some(option => option.value === subjectToSelect)) subjectSelect.value = subjectToSelect;
+		}
+
+		function saveSubject() {
+			if (classSelect.value && subjectSelect.value) {
+				localStorage.setItem(`teacherLoginSubject:${classSelect.value}`, subjectSelect.value);
+			}
+		}
+
+		classSelect.addEventListener('change', () => {
+			filterSubjects();
+			localStorage.setItem('teacherLoginClass', classSelect.value);
+			subjectSelect.selectedIndex = subjectSelect.options.length > 1 ? 1 : 0;
+		saveSubject();
+		});
+		subjectSelect.addEventListener('change', saveSubject);
+
+		if ([...classSelect.options].some(option => option.value === savedClass)) {
+			classSelect.value = savedClass;
+			const lastSubject = localStorage.getItem(`teacherLoginSubject:${savedClass}`);
+			filterSubjects(lastSubject);
+			const subjectOptions = [...subjectSelect.options].filter(option => option.value);
+			const lastSubjectIndex = subjectOptions.findIndex(option => option.value === lastSubject);
+			const nextSubject = subjectOptions[(lastSubjectIndex + 1) % subjectOptions.length];
+			if (nextSubject) subjectSelect.value = nextSubject.value;
+			saveSubject();
+		}
+
+		passwordToggle.addEventListener('click', () => {
+			const isHidden = passwordInput.type === 'password';
+			passwordInput.type = isHidden ? 'text' : 'password';
+			passwordToggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+			passwordToggle.setAttribute('aria-pressed', String(isHidden));
+		});
+	</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Login | TLMPS</title>
+    <link rel="stylesheet" href="/css/student.css">
+    <style>
+        :root {
+            --primary-purple: #6a0dad;
+            --lilac-light: #e6d7ff;
+            --lilac-border: #d1b3ff;
+            --dark-text: #2d0a4d;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, var(--lilac-light) 0%, #ffffff 100%); 
+        }
+
+        .login-card { 
+            background: white; 
+            padding: 40px 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(106, 13, 173, 0.15); 
+            width: 100%;
+            max-width: 350px; 
+            text-align: center;
+            border: 1px solid var(--lilac-border);
+        }
+
+        .logo-container img {
+            width: 100px;
+            margin-bottom: 15px;
+        }
+
+        h2 { 
+            color: var(--primary-purple); 
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+
+        p.subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .error-msg {
+            background: #fff0f0;
+            color: #d8000c;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            border: 1px solid #ffbaba;
+        }
+
+        .password-container { 
+            position: relative; 
+            width: 100%; 
+        }
+
+        input { 
+            width: 100%; 
+            padding: 12px 15px; 
+            margin: 10px 0; 
+            border: 1px solid var(--lilac-border); 
+            border-radius: 8px;
+            box-sizing: border-box; 
+            font-size: 15px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-purple);
+            box-shadow: 0 0 5px rgba(106, 13, 173, 0.2);
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 18px;
+            color: var(--primary-purple);
+            user-select: none;
+        }
+
+        button { 
+            width: 100%; 
+            padding: 12px; 
+            background: var(--primary-purple); 
+            color: white; 
+            border: none; 
+            border-radius: 8px;
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover { 
+            background: #520a87; 
+        }
+
+        .footer-text {
+            margin-top: 25px;
+            font-size: 11px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="/img/tlmps_llogo.png" alt="TLMPS Logo" onerror="this.src='/img/tlmps_llogo.png'">
+        </div>
+        
+        <h2>Student Portal</h2>
+        <p class="subtitle">Enter your details to check your result</p>
+
+        <% if (error) { %>
+            <div class="error-msg">⚠️ <%= error %></div>
+        <% } %>
+
+        <form action="/login" method="POST" autocomplete="off">
+            <input type="text" name="admission_no" placeholder="Admission Number" required>
+            
+            <div class="password-container">
+                <input type="password" id="passwordField" name="surname" placeholder="Surname (Password)" required>
+                <span class="toggle-password" onclick="toggleVisibility()">👁️</span>
+            </div>
+
+            <span> <a href="https://tlmps.netlify.app/bece/bece_login">Please click me to check your BECE result</a></span>
+
+            <button type="submit">Login to Portal</button>
+        </form>
+
+        <div class="footer-text">
+            © <span id="currentYear"></span> The Leaders Memorial Private School
+        </div>
+    </div>
+
+    <script>
+        // Toggle Password Visibility
+        function toggleVisibility() {
+            const passField = document.getElementById('passwordField');
+            const toggleIcon = document.querySelector('.toggle-password');
+            if (passField.type === "password") {
+                passField.type = "text";
+                toggleIcon.textContent = "🙈"; 
+            } else {
+                passField.type = "password";
+                toggleIcon.textContent = "👁️";
+            }
+        }
+
+        // Auto Update Year
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>

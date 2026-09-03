@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Scores - <%= subject.subject_name %></title>
+    <style>
+        :root { font-family: "Trebuchet MS", Arial, sans-serif; color: #241b35; background: #f3effb; }
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 10% 0%, #e7d9ff 0, #f3effb 38%, #eef8e9 100%); }
+        .nav { background: linear-gradient(110deg, #4b237d, #713ca2); color: #fff; padding: 18px max(20px, calc((100% - 1150px) / 2)); display: flex; justify-content: space-between; align-items: center; gap: 12px; box-shadow: 0 8px 26px #4b237d30; }
+        .nav h1 { font-size: 19px; margin: 0; }
+        .nav a { color: #fff; border: 1px solid #ffffff66; border-radius: 999px; padding: 9px 14px; }
+        .wrap { max-width: 1150px; margin: 0 auto; padding: 25px 20px; }
+        .back { color: #4b237d; text-decoration: none; font-weight: bold; }
+        .heading { display: flex; justify-content: space-between; align-items: end; gap: 15px; margin: 20px 0; }
+        .heading h2 { margin: 0 0 6px; color: #321655; }
+        .note { color: #685d74; margin: 0; }
+        .saved { color: #5a9b2f; font-weight: bold; }
+        .score-form { padding: 0; }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid #c8c8c8; background: #fff; }
+        table { width: 100%; min-width: 600px; border-collapse: collapse; }
+        th, td { padding: 5px 6px; border: 1px solid #d8d8d8; text-align: left; white-space: nowrap; }
+        th { background: #eee; color: #241b35; font-size: 13px; font-weight: bold; }
+        th:first-child, th:nth-child(2) { background: #eee; }
+        td:first-child { color: #685d74; font-weight: bold; }
+        td:nth-child(2) { color: #321655; font-weight: bold; }
+        input[type="number"] { width: 58px; height: 32px; padding: 3px; border: 1px solid #aaa; border-radius: 0; font-size: 16px; text-align: center; }
+        input[type="number"]:focus { outline: 2px solid #9b7bc1; border-color: #713ca2; }
+        .total { color: #241b35; font-weight: bold; font-size: 16px; }
+        .score-error { display: none; margin: 10px 0 0; padding: 10px 12px; border-left: 4px solid #c62828; background: #ffebee; color: #8e1b1b; font-weight: bold; }
+        .save { display: block; margin: 12px 0 0 auto; background: #5a9b2f; color: #fff; border: 0; border-radius: 4px; padding: 11px 18px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+        .export, .bulk-upload button { background: #246bce; color: #fff; border: 0; border-radius: 4px; padding: 11px 18px; font-size: 16px; font-weight: bold; text-decoration: none; cursor: pointer; }
+        .bulk-upload { display: flex; align-items: center; gap: 18px; margin: 0 0 14px; padding: 12px; background: #ffffffb8; border: 1px solid #d8d8d8; }
+        .bulk-upload form { display: flex; align-items: center; gap: 10px; }
+        .empty { padding: 22px; background: #ffffffb8; border-radius: 12px; }
+        @media (max-width: 680px) {
+            .nav { padding: 14px 16px; }
+            .nav h1 { font-size: 14px; max-width: 75%; }
+            .wrap { padding: 20px 10px; }
+            .heading { display: block; }
+            .heading h2 { font-size: 21px; }
+            .score-form { padding: 0; }
+            table { min-width: 600px; }
+            th, td { padding: 5px 6px; }
+            th { font-size: 12px; }
+            input[type="number"] { width: 58px; height: 38px; font-size: 17px; }
+            .actions { display: grid; grid-template-columns: 1fr 1fr; }
+            .export, .save { width: 100%; height: 50px; margin-top: 12px; text-align: center; }
+            .bulk-upload, .bulk-upload form { display: block; }
+            .bulk-upload input, .bulk-upload button { width: 100%; margin-top: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <h1><%= className.slice(0, 3) %> <%= className.slice(3) %> | <%= subject.subject_name %></h1>
+        <a href="/teacher/logout">Logout</a>
+    </nav>
+    <main class="wrap">
+        <a class="back" href="/teacher/dashboard">&larr; Dashboard</a>
+        <div class="heading">
+            <div>
+                <h2><%= session.session_name %> | <%= term.term_name %></h2>
+            </div>
+            <% if (typeof query !== 'undefined' && query.saved) { %><span class="saved">Scores saved</span><% } %>
+        </div>
+        <div class="bulk-upload">
+            <strong>Bulk upload</strong>
+            <form method="POST" action="/teacher/scores/<%= session.session_id %>/<%= term.term_id %>/bulk-upload" enctype="multipart/form-data">
+                <input type="file" name="excel_file" accept=".xlsx,.xls" required>
+                <button type="submit">Upload Excel</button>
+            </form>
+        </div>
+        <% if (!students.length) { %>
+            <div class="empty">No students in this class are registered for this subject in this session.</div>
+        <% } else { %>
+            <form class="score-form" method="POST" action="/teacher/scores/<%= session.session_id %>/<%= term.term_id %>">
+                <div class="score-error" id="scoreError" role="alert"></div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>Admin No</th><th>Surname</th><th>CA(40)</th><th>MCQ</th><th>Theory</th><th>Total</th></tr></thead>
+                        <tbody>
+                            <% students.forEach((student, index) => { %>
+                                <tr>
+                                    <td><%= student.admission_no %><input type="hidden" name="scores[<%= index %>][admission_no]" value="<%= student.admission_no %>"></td>
+                                    <td><%= student.surname %></td>
+                                    <td><input type="number" name="scores[<%= index %>][ca]" min="0" max="40" step="0.1" value="<%= student.ca_score || '' %>"></td>
+                                    <td><input type="number" name="scores[<%= index %>][mcq]" min="0" max="60" step="0.1" value="<%= student.mcq_score || '' %>"></td>
+                                    <td><input type="number" name="scores[<%= index %>][theory]" min="0" max="60" step="0.1" value="<%= student.theory_score || '' %>"></td>
+                                    <td class="total">0.0</td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="actions">
+                    <a class="export" href="/teacher/scores/<%= session.session_id %>/<%= term.term_id %>/export">Export Excel</a>
+                    <button class="save" type="submit">Save &amp; Submit Scores</button>
+                </div>
+            </form>
+        <% } %>
+    </main>
+    <script>
+        document.querySelectorAll('tbody tr').forEach((row) => {
+            const inputs = [...row.querySelectorAll('input[type="number"]')];
+            const total = row.querySelector('.total');
+            const updateTotal = () => {
+                inputs.forEach((input) => {
+                    if (Number(input.value) > Number(input.max)) input.value = input.max;
+                    if (Number(input.value) < 0) input.value = 0;
+                });
+                total.textContent = (Number(inputs[0].value || 0) + Number(inputs[1].value || 0) + Number(inputs[2].value || 0)).toFixed(1);
+            };
+            inputs.forEach((input) => input.addEventListener('input', updateTotal));
+            inputs.forEach((input) => input.addEventListener('wheel', (event) => event.preventDefault(), { passive: false }));
+            updateTotal();
+        });
+        const scoreForm = document.querySelector('.score-form');
+        const scoreError = document.getElementById('scoreError');
+        const draftKey = `score-draft-${location.pathname}`;
+        const draft = JSON.parse(localStorage.getItem(draftKey) || '{}');
+        scoreForm?.querySelectorAll('tbody tr').forEach((row) => {
+            const admissionNo = row.cells[0].textContent.trim();
+            const inputs = [...row.querySelectorAll('input[type="number"]')];
+            if (draft[admissionNo]) draft[admissionNo].forEach((value, index) => { inputs[index].value = value; });
+            inputs.forEach((input) => input.dispatchEvent(new Event('input')));
+        });
+        scoreForm?.addEventListener('input', () => {
+            const values = {};
+            scoreForm.querySelectorAll('tbody tr').forEach((row) => {
+                values[row.cells[0].textContent.trim()] = [...row.querySelectorAll('input[type="number"]')].map((input) => input.value);
+            });
+            localStorage.setItem(draftKey, JSON.stringify(values));
+        });
+        if (scoreForm) scoreForm.addEventListener('submit', (event) => {
+            const errors = [];
+            scoreForm.querySelectorAll('tbody tr').forEach((row) => {
+                const values = [...row.querySelectorAll('input[type="number"]')].map((input) => Number(input.value) || 0);
+                const total = values[0] + values[1] + values[2];
+                if (total > 100) errors.push(`Total score for ${row.cells[0].textContent.trim()} ${row.cells[1].textContent.trim()} is above 100. Please make your correction.`);
+            });
+            if (errors.length) {
+                event.preventDefault();
+                scoreError.textContent = errors.join(' ');
+                scoreError.style.display = 'block';
+                scoreError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                localStorage.removeItem(draftKey);
+            }
+        });
+    </script>
+</body>
+</html>

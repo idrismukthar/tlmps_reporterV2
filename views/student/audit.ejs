@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Academic Audit | Student Portal</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-purple: #6a0dad;
+            --light-purple: #f3e8ff;
+            --accent-green: #a7d129;
+        }
+        .audit-card {
+            background: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary-purple);
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .summary-stats {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;
+        }
+        .stat-box {
+            background: var(--light-purple); border-radius: 10px; padding: 20px; text-align: center;
+        }
+        .stat-box h3 { color: var(--primary-purple); font-size: 28px; margin: 5px 0; font-weight: bold; }
+        .stat-box p { color: #666; font-size: 14px; margin: 0; }
+        .audit-table th { background: var(--primary-purple) !important; color: white !important; }
+    </style>
+</head>
+<body>
+	<div class="wrapper">
+		<!-- Header -->
+		<div class="header">
+			<div class="container">
+				<div class="row">
+                    <div class="col-md-6 col-xs-8">
+                        <a class="logo" href="/portal" style="text-decoration: none;">
+                            <img src="/img/tlmps_llogo.png" alt="Logo">
+                            <span class="logo-text">My TLMPS Profile</span>
+                        </a>
+                    </div>
+                </div>
+			</div>
+		</div>
+
+		<div class="container content">
+			<div class="row">
+				<!-- Sidebar -->
+				<div class="col-md-3">
+                    <div class="sidebar-nav-v1">
+                        <div class="profile-section">
+                            <img class="img-circle profile-img" src="<%= student.Passport || '/img/default-avatar.png' %>" alt="<%= student.surname %>" onerror="this.src='/img/default-avatar.png';">
+                            <h4 style="font-weight: bold; color: var(--primary-purple);"><%= student.surname %> <%= student.middle_name || '' %></h4>
+                            <span class="label label-success" style="background: var(--accent-green);"><%= student.admission_no %></span>
+                        </div>
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                <a href="/portal"><i class="fa fa-home"></i> View All My Results</a>
+                            </li>
+                            <li class="list-group-item active">
+                                <a href="/audit"><i class="fa fa-bar-chart"></i> Performance Audit</a>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="/profile"><i class="fa fa-user"></i> My Profile</a>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="/logout"><i class="fa fa-sign-out"></i> Logout</a>
+                            </li>
+                        </ul>
+                    </div>
+				</div>
+
+				<!-- Main Content -->
+				<div class="col-md-9">
+                    <div class="headline"><h2>Academic Performance Audit</h2></div>
+                    
+                    <!-- Top Summary -->
+                    <div class="summary-stats">
+                        <div class="stat-box">
+                            <p>Average Score</p>
+                            <h3><%= (auditData.length > 0 ? (auditData.reduce((acc, curr) => acc + curr.average, 0) / auditData.length).toFixed(1) : 0) %>%</h3>
+                        </div>
+                        <div class="stat-box">
+                            <p>Total Passes</p>
+                            <h3><%= auditData.reduce((acc, curr) => acc + curr.totalPassed, 0) %></h3>
+                        </div>
+                        <div class="stat-box">
+                            <p>Sessions Completed</p>
+                            <h3><%= auditData.length %></h3>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="audit-card">
+                                <h4>Subjects vs Passes</h4>
+                                <div class="chart-container">
+                                    <canvas id="passesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="audit-card">
+                                <h4>Academic Growth Trend</h4>
+                                <div class="chart-container">
+                                    <canvas id="trendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Table -->
+                    <div class="audit-card">
+                        <h4>Session Breakdown</h4>
+                        <div class="table-responsive">
+                            <table class="table table-striped audit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Academic Session</th>
+                                        <th>Class</th>
+                                        <th>Total Subjects</th>
+                                        <th>Subjects Passed (>=50%)</th>
+                                        <th>Avg. Score (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% auditData.forEach(row => { %>
+                                        <tr>
+                                            <td><strong><%= row.session.replace('_and_', '/') %></strong></td>
+                                            <td><%= row.class %></td>
+                                            <td><%= row.totalSubjects %></td>
+                                            <td><span class="badge" style="background-color: <%= row.totalPassed == row.totalSubjects ? '#a7d129' : '#6a0dad' %>"><%= row.totalPassed %></span></td>
+                                            <td><strong><%= row.average.toFixed(1) %>%</strong></td>
+                                        </tr>
+                                    <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        const auditData = <%- JSON.stringify(auditData) %>;
+        const labels = auditData.map(d => d.session.replace('_and_', '/'));
+        const totalSubs = auditData.map(d => d.totalSubjects);
+        const passedSubs = auditData.map(d => d.totalPassed);
+        const averages = auditData.map(d => d.average);
+
+        // Bar Chart: Subjects vs Passes
+        new Chart(document.getElementById('passesChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Subjects',
+                        data: totalSubs,
+                        backgroundColor: '#f3e8ff',
+                        borderColor: '#6a0dad',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Passed Subjects',
+                        data: passedSubs,
+                        backgroundColor: '#6a0dad'
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+
+        // Line Chart: Average Trend
+        new Chart(document.getElementById('trendChart'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Average Score (%)',
+                    data: averages,
+                    borderColor: '#a7d129',
+                    backgroundColor: 'rgba(167, 209, 41, 0.2)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 6,
+                    pointBackgroundColor: '#6a0dad'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    y: { 
+                        beginAtZero: false,
+                        suggestedMin: 40,
+                        suggestedMax: 100
+                    } 
+                }
+            }
+        });
+    </script>
+</body>
+</html>

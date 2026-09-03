@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Edit Student - <%= student.admission_no %></title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
+        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: span 2; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        .date-grid { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 8px; }
+        .subject-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; border: 1px solid #ddd; padding: 15px; max-height: 250px; overflow-y: auto; }
+        .subject-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+        .subject-item input { width: auto; }
+        .btn { background: #0d6efd; color: #fff; padding: 12px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        a { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; }
+        .muted { color: #6c757d; font-size: 13px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="<%= sessionId ? '/superadmin/sessions/' + sessionId : '/superadmin/student/' + student.admission_no %>">&larr; Back</a>
+        <h2>Edit Student Profile</h2>
+        <p class="muted">Admission Number: <strong><%= student.admission_no %></strong> (cannot be changed)</p>
+        <form action="/superadmin/student/<%= student.admission_no %>/edit" method="POST" enctype="multipart/form-data">
+            <% if (sessionId) { %><input type="hidden" name="session_id" value="<%= sessionId %>"><% } %>
+            <div class="form-grid">
+                <div class="form-group"><label>Class</label><select name="class_name" required><% ['JSS1','JSS2','JSS3','SSS1','SSS2','SSS3'].forEach(cls => { %><option value="<%= cls %>" <%= student.class_name === cls ? 'selected' : '' %>><%= cls.slice(0, 3) %> <%= cls.slice(3) %></option><% }); %></select></div>
+                <div class="form-group"><label>Department</label><select name="department"><option value="">-- None --</option><% ['Science','Commercial','Humanities(Art)'].forEach(dept => { %><option value="<%= dept %>" <%= student.department === dept ? 'selected' : '' %>><%= dept %></option><% }); %></select></div>
+                <div class="form-group"><label>Gender</label><select name="gender" required><option value="Male" <%= student.gender === 'Male' ? 'selected' : '' %>>Male</option><option value="Female" <%= student.gender === 'Female' ? 'selected' : '' %>>Female</option></select></div>
+                <div class="form-group"><label>Surname</label><input type="text" name="surname" value="<%= student.surname %>" required></div>
+                <div class="form-group"><label>Middle Name</label><input type="text" name="middle_name" value="<%= student.middle_name || '' %>"></div>
+                <div class="form-group"><label>First Name</label><input type="text" name="last_name" value="<%= student.last_name %>" required></div>
+                <div class="form-group"><label>Date of Birth (DD / MM / YYYY)</label><div class="date-grid"><select id="dob_day" required><option value="">Day</option><% for(let d = 1; d <= 31; d++) { const value = d < 10 ? '0' + d : '' + d; %><option value="<%= value %>"><%= value %></option><% } %></select><select id="dob_month" required><option value="">Month</option><% for(let m = 1; m <= 12; m++) { const value = m < 10 ? '0' + m : '' + m; %><option value="<%= value %>"><%= value %></option><% } %></select><input type="text" id="dob_year" placeholder="YYYY" pattern="[0-9]{4}" required></div><input type="hidden" name="dob" id="final_dob"></div>
+                <div class="form-group"><label>Phone Number</label><input type="text" name="phone_number" value="<%= student.phone_number || '' %>" required></div>
+                <div class="form-group"><label>Email Address</label><input type="email" name="email" value="<%= student.email || '' %>"></div>
+                <div class="form-group"><label>State of Origin</label><select name="state_of_origin" id="stateSelect" required><option value="">-- Select State --</option><% states.forEach(state => { %><option value="<%= state.name %>" <%= student.state_of_origin === state.name ? 'selected' : '' %>><%= state.name %></option><% }); %></select></div>
+                <div class="form-group"><label>Local Government Area (LGA)</label><select name="lga" id="lgaSelect" required></select></div>
+                <div class="form-group"><label>Club</label><input type="text" name="club" value="<%= student.club || '' %>"></div>
+                <div class="form-group"><label>Society</label><input type="text" name="society" value="<%= student.society || '' %>"></div>
+                <div class="form-group full-width"><label>Residential Address</label><input type="text" name="address" value="<%= student.address || '' %>" required></div>
+                <div class="form-group full-width"><label>Replace Passport Photo (optional)</label><input type="file" name="passport" accept="image/*"><p class="muted">Leave empty to keep the current photo.</p></div>
+            </div>
+            <div class="form-group full-width"><label>Select Offered Subjects</label><div class="subject-grid"><% subjects.forEach(sub => { %><div class="subject-item"><input type="checkbox" name="subject_ids" value="<%= sub.subject_id %>" <%= selectedSubjectIds.includes(sub.subject_id) ? 'checked' : '' %>><span><%= sub.subject_name %> <% if (sub.level_category === 'SSS') { %>(<%= sub.unit_weight %> Unit<%= sub.unit_weight > 1 ? 's' : '' %>)<% } %></span></div><% }); %></div></div>
+            <button type="submit" class="btn">Save Changes</button>
+        </form>
+    </div>
+    <script type="application/json" id="statesData"><%- JSON.stringify(states) %></script>
+    <script>
+        const states = JSON.parse(document.getElementById('statesData').textContent);
+        const stateSelect = document.getElementById('stateSelect');
+        const lgaSelect = document.getElementById('lgaSelect');
+        const currentLga = <%- JSON.stringify(student.lga || '') %>;
+        function loadLgas() {
+            const selectedState = states.find((state) => state.name === stateSelect.value);
+            lgaSelect.innerHTML = '<option value="">-- Select LGA --</option>';
+            if (selectedState) selectedState.lgas.forEach((lga) => { const option = document.createElement('option'); option.value = lga; option.textContent = lga; option.selected = lga === currentLga; lgaSelect.appendChild(option); });
+        }
+        stateSelect.addEventListener('change', loadLgas);
+        loadLgas();
+        const dobParts = (<%- JSON.stringify(student.dob || '') %>).split('/');
+        if (dobParts.length === 3) { document.getElementById('dob_day').value = dobParts[0]; document.getElementById('dob_month').value = dobParts[1]; document.getElementById('dob_year').value = dobParts[2]; }
+        document.querySelector('form').addEventListener('submit', () => { document.getElementById('final_dob').value = `${document.getElementById('dob_day').value}/${document.getElementById('dob_month').value}/${document.getElementById('dob_year').value}`; });
+    </script>
+</body>
+</html>

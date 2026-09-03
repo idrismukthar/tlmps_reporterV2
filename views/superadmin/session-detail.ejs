@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= session.session_name %> - Session Workspace</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card { background: #fff; padding: 22px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.08); margin-bottom: 20px; }
+        .term-header { border-left: 5px solid #198754; }
+        .term-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        label { display: block; font-weight: bold; font-size: 13px; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; box-sizing: border-box; }
+        .btn, .action { display: inline-block; border: 0; background: #0d6efd; color: #fff; padding: 10px 14px; border-radius: 4px; text-decoration: none; font-weight: bold; cursor: pointer; }
+        .success { background: #198754; }
+        .muted { color: #6c757d; }
+        .class-group { border: 1px solid #ddd; margin-top: 12px; }
+        summary { padding: 12px; background: #f1f3f5; cursor: pointer; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border-top: 1px solid #e0e0e0; text-align: left; }
+        @media (max-width: 700px) { .term-grid { grid-template-columns: 1fr 1fr; } table { font-size: 13px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <p><a href="/superadmin/sessions">&larr; All Sessions</a></p>
+    <div class="card term-header">
+        <h1><%= session.session_name %> Session Workspace</h1>
+        <% if (term) { %>
+            <p><strong>Active: <%= term.term_name %></strong> <span class="muted">Term <%= term.term_number %></span></p>
+            <form action="/superadmin/conclude-term" method="POST">
+                <input type="hidden" name="term_id" value="<%= term.term_id %>">
+                <div class="term-grid">
+                    <div><label>Resumption Date</label><input type="date" name="resumption_date" value="<%= term.resumption_date || '' %>" required></div>
+                    <div><label>Vacation Date</label><input type="date" name="vacation_date" value="<%= term.vacation_date || '' %>" required></div>
+                    <div><label>Days School Opened</label><input type="number" name="days_opened" value="<%= term.days_school_opened || 60 %>" min="0" required></div>
+                    <div><label>Next Term Resumes</label><input type="date" name="next_term_resumes" value="<%= term.next_term_resumes || '' %>" required></div>
+                </div>
+                <button class="btn success" type="submit" style="margin-top: 16px;">Conclude <%= term.term_name %></button>
+            </form>
+        <% } else { %><p>All terms for this session are concluded.</p><% } %>
+    </div>
+
+    <div class="card">
+        <a class="btn" href="/superadmin/register-student?session_id=<%= session.session_id %>">Register New Student</a>
+        <h2>Session Roster</h2>
+        <% ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'].forEach(cls => { const group = students.filter(s => s.class_name === cls); %>
+            <details class="class-group" <%= group.length ? 'open' : '' %>>
+                <summary><%= cls.slice(0, 3) %> <%= cls.slice(3) %> (<%= group.length %>)</summary>
+                <table>
+                    <thead><tr><th>Admission No</th><th>Name</th><th>Gender</th><th>Department</th><th>Actions</th></tr></thead>
+                    <tbody>
+                    <% if (!group.length) { %><tr><td colspan="5" class="muted">No students enrolled.</td></tr><% } %>
+                    <% group.forEach(student => { %>
+                        <tr>
+                            <td><strong><%= student.admission_no %></strong></td>
+                            <td><%= student.surname %> <%= student.middle_name || '' %> <%= student.last_name %></td>
+                            <td><%= student.gender %></td>
+                            <td><%= student.department || 'N/A' %></td>
+                            <td><a class="action" href="/superadmin/student/<%= student.admission_no %>">Profile</a> <a class="action" href="/superadmin/student/<%= student.admission_no %>/edit?session_id=<%= session.session_id %>">Edit</a> <a class="action" href="/superadmin/download-pdf/<%= student.admission_no %>">PDF</a></td>
+                        </tr>
+                    <% }); %>
+                    </tbody>
+                </table>
+            </details>
+        <% }); %>
+    </div>
+</div>
+</body>
+</html>

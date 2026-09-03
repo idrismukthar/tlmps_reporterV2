@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<!--[if IE 8]> <html lang="en" class="ie8"> <![endif]-->
+<!--[if IE 9]> <html lang="en" class="ie9"> <![endif]-->
+<!--[if !IE]><!--> <html lang="en"> <!--<![endif]-->
+<head>
+	<title>Student Profile | TLMPS</title>
+
+	<!-- Meta -->
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<!-- Local Styles for Offline Support -->
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+	<div class="wrapper">
+		<!--=== Header ===-->
+		<div class="header">
+			<div class="container">
+				<div class="row">
+                    <div class="col-md-6 col-xs-8">
+                        <a class="logo" href="/portal" style="text-decoration: none;">
+                            <img src="/img/tlmps_llogo.png" alt="Logo" onerror="this.src='/img/tlmps_llogo.png'">
+                            <span class="logo-text">TLMPS Profile</span>
+                        </a>
+                    </div>
+                    <div class="col-md-6 col-xs-4 text-right topbar">
+                        <div class="hidden-xs">
+                            Have questions? <a href="mailto:contacttlmps@gmail.com">Contact Us</a>
+                        </div>
+                    </div>
+                </div>
+			</div>
+		</div>
+
+		<!--=== Breadcrumbs ===-->
+		<div class="breadcrumbs">
+			<div class="container">
+				<h1 class="pull-left">My Profile</h1>
+                <div class="pull-right hidden-xs" style="color: #6a0dad; font-weight: bold;">
+                    <i class="fa fa-calendar"></i> <span id="currentDate"></span>
+                </div>
+			</div>
+		</div>
+
+		<div class="container content">
+			<div class="row">
+				<!-- Sidebar -->
+				<div class="col-md-3 md-margin-bottom-40">
+                    <div class="sidebar-nav-v1">
+                        <div class="profile-section">
+                            <img class="img-circle profile-img" 
+                                 src="<%= student.passport_url || '/img/' + student.admission_no + '.jpg' %>" 
+                                 alt="<%= student.surname %>" 
+                                 onerror="this.src='/img/default-avatar.png';">
+                            <h4 style="font-weight: bold; color: #6a0dad; margin-bottom: 5px;"><%= student.surname %> <%= student.middle_name || '' %></h4>
+                            <span class="label label-success" style="font-size: 12px; background: #a7d129;"><%= student.admission_no %></span>
+                        </div>
+                        <ul class="list-group">
+                            <li class="list-group-item">
+                                <a href="/portal"><i class="fa fa-home"></i> Dashboard</a>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="/audit"><i class="fa fa-bar-chart"></i> Performance Audit</a>
+                            </li>
+                            <li class="list-group-item active">
+                                <a href="/profile"><i class="fa fa-user"></i> My Profile</a>
+                            </li>
+                            <li class="list-group-item">
+                                <a href="/logout"><i class="fa fa-sign-out"></i> Logout</a>
+                            </li>
+                        </ul>
+                    </div>
+				</div>
+
+				<!-- Main Content -->
+				<div class="col-md-9">
+                    
+                    <div class="row">
+                        <!-- Bio Data -->
+                        <div class="col-md-6">
+                            <div class="profile-detail-card">
+                                <h3><i class="fa fa-id-card"></i> Personal Information</h3>
+                                
+                                <div class="detail-row">
+                                    <span class="detail-label">Full Name:</span>
+                                    <span class="detail-value"><%= student.surname %> <%= student.middle_name || '' %> <%= student.last_name %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Gender:</span>
+                                    <span class="detail-value"><%= student.gender %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Date of Birth:</span>
+                                    <span class="detail-value"><%= student.dob || 'Not Record' %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">State of Origin:</span>
+                                    <span class="detail-value"><%= student.state_of_origin || 'Not Record' %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">LGA:</span>
+                                    <span class="detail-value"><%= student.lga || 'Not Record' %></span>
+                                </div>
+                            </div>
+                        </div>
+
+                         <!-- Contact Info -->
+                         <div class="col-md-6">
+                            <div class="profile-detail-card">
+                                <h3><i class="fa fa-map-marker"></i> Contact Details</h3>
+                                
+                                <div class="detail-row">
+                                    <span class="detail-label">Current Class:</span>
+                                    <span class="detail-value"><%= student.class_name %></span>
+                                </div>
+                                <% if (student.department) { %>
+                                <div class="detail-row">
+                                    <span class="detail-label">Department:</span>
+                                    <span class="detail-value"><%= student.department %></span>
+                                </div>
+                                <% } %>
+                                <div class="detail-row">
+                                    <span class="detail-label">Phone Number:</span>
+                                    <span class="detail-value"><%= student.phone_number || 'Not Record' %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Email Address:</span>
+                                    <span class="detail-value"><%= student.email || 'Not Record' %></span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Home Address:</span>
+                                    <span class="detail-value"><%= student.address || 'Not Record' %></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voluntary Groups -->
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="profile-detail-card">
+                                <h3><i class="fa fa-users"></i> Voluntary Groups</h3>
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div style="display: flex; gap: 40px; flex-wrap: wrap;">
+                                            <div class="detail-row" style="border: none; padding: 0; min-width: 150px;">
+                                                <span class="detail-label">Club:</span>
+                                                <span class="detail-value"><%= student.club || 'Not Registered' %></span>
+                                            </div>
+                                            <div class="detail-row" style="border: none; padding: 0; min-width: 150px;">
+                                                <span class="detail-label">Society:</span>
+                                                <span class="detail-value" style="white-space: nowrap;"><%= student.society || 'Not Registered' %></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subjects Grouped by Session -->
+                    <% if (sessions && sessions.length > 0) { %>
+                        <% sessions.forEach(s => { %>
+                            <div class="profile-detail-card">
+                                <h3><i class="fa fa-book"></i> Registered Subjects in <%= s.session_name %> academic session</h3>
+                                <p style="font-size: 11px; color: #888; margin-top: -10px; margin-bottom: 15px;">Class: <%= s.class_name %></p>
+                                <div class="subject-list">
+                                    <% if (s.subjects) { %>
+                                        <% s.subjects.split(',').forEach(sub => { %>
+                                            <span class="subject-badge"><%= sub.replace(/_/g, ' ') %></span>
+                                        <% }) %>
+                                    <% } else { %>
+                                        <span style="color: #888; font-style: italic;">No subjects registered.</span>
+                                    <% } %>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } else { %>
+                        <div class="profile-detail-card">
+                            <h3><i class="fa fa-book"></i> Registered Subjects</h3>
+                            <p style="color: #888; font-style: italic;">No subjects registered yet.</p>
+                        </div>
+                    <% } %>
+
+				</div>
+			</div>
+		</div>
+	</div>
+
+    <div class="footer-v1">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <img src="/img/tlmps_llogo.png" class="footer-logo" alt="TLMPS logo">
+                    <p>The Leaders Memorial Private School.<br>We Nurture the Leaders of tomorrow.</p>
+                </div>
+                <div class="col-md-4 text-center">
+                    <p>17, Shoye Odubana Street, Off Papa Major B/stop,<br>Ijegun-Ikotun, Lagos.</p>
+                    <p>contacttlmps@gmail.com</p>
+                </div>
+                <div class="col-md-4 text-right">
+                    <p><script>document.write(new Date().getFullYear())</script> &copy; All Rights Reserved.<br>Powered by <strong>TLMPS Tech</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        });
+    </script>
+</body>
+</html>

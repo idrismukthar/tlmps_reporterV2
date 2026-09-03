@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= student.Name %> - Academic Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/student.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'DM Sans', sans-serif; background: #eee9f7; margin: 0; padding: 10px; }
+        .no-print-btn { background: #6a0dad; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px auto; display: block; font-weight: bold; }
+        .report-card { background: white; width: 210mm; margin: auto; padding: 10mm; border: 2px solid #6a0dad; box-sizing: border-box; box-shadow: 0 12px 35px rgba(45, 10, 77, 0.18); position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6a0dad; padding-bottom: 8px; }
+        .school-logo { width: 65px; height: 65px; object-fit: contain; }
+        .student-photo { width: 80px; height: 90px; border: 1px solid #6a0dad; object-fit: cover; }
+        .school-info h2 { font-family: 'Playfair Display', serif; color: #6a0dad; margin: 0; font-size: 18px; text-align: center; text-transform: uppercase; }
+        .school-info p { margin: 1px 0; text-align: center; font-size: 9px; color: #333; }
+        .title-banner { background: #6a0dad; color: white; text-align: center; padding: 4px; margin: 8px 0; font-weight: bold; font-size: 11px; }
+        .info-bar { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 10px; margin: 5px 0; padding: 6px; background: #f9f9f9; border: 1px solid #ddd; font-size: 10px; }
+        .performance-section { display: flex; gap: 8px; margin-top: 8px; }
+        .main-table { flex: 3; }
+        .side-stats-container { flex: 1.1; display: flex; flex-direction: column; gap: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #444; padding: 3px 5px; text-align: left; font-size: 10px; }
+        th { background-color: #f2f2f2; font-size: 9px; }
+        .summary-box { border: 1px solid #6a0dad; padding: 6px; background: #fff; }
+        .summary-box p { margin: 2px 0; font-size: 10px; }
+        .comment-area { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .comment-box { border: 1px solid #888; padding: 6px; height: 115px; position: relative; }
+        .principal-font { font-family: 'Dancing Script', cursive; font-size: 14px; color: #1a1a1a; margin: 5px 0; line-height: 1.3;}
+        .teacher-font { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #1a1a1a; margin: 5px 0; line-height: 1.3;}
+        .sig { position: absolute; bottom: 3px; right: 8px; border-top: 1px solid #000; width: 110px; text-align: center; font-size: 8px; }
+        .footer-date { margin-top: 10px; font-size: 8px; color: #666; font-style: italic; border-top: 1px dotted #ccc; padding-top: 3px; }
+    </style>
+</head>
+<body>
+
+    <button class="no-print-btn" onclick="downloadPDF()">📥 Download Result PDF</button>
+
+    <div class="report-card" id="result-sheet">
+        <div class="header">
+            <img src="/img/tlmps_llogo.png" class="school-logo" onerror="this.src='/img/tlmps_llogo.png'">
+            <div class="school-info">
+                <h2>THE LEADERS MEMORIAL PRIVATE SCHOOL</h2>
+                <p>Motto: We Nurture the Leaders of tomorrow</p>
+                <p>Address: 17, Shoye Odubana Street, Off Papa Major B/stop, Ijegun-Ikotun, Lagos.</p>
+                <p>Contact: contacttlmps@gmail.com | 08034417992 <br> <p>website: <tlmps class="netlify app">tlmps.netlify.app</tlmps></p></p>
+            </div>
+            <img src="<%= student.Passport || '/img/default-avatar.png' %>" class="student-photo" onerror="this.src='/img/default-avatar.png'">
+        </div>
+
+        <div class="title-banner" style="text-align: left; padding-left: 10px;">
+            1. PERSONAL BIO-DATA
+        </div>
+
+        <div class="info-bar">
+            <div>
+                <strong>FULL NAME:</strong> <%= student.Name %><br>
+                <strong>ADMISSION NUMBER:</strong> <%= student.Admission_no %>
+            </div>
+            <div>
+                <strong>CLASS:</strong> <%= student.Class %><br>
+                <strong>GENDER:</strong> <%= student.Sex %>
+                <% if (student.Class && student.Class.toUpperCase().startsWith('SSS')) { %>
+                    <br><strong>DEPARTMENT:</strong> <%= student.department || 'N/A' %>
+                <% } %>
+            </div>
+            <div style="text-align: right;">
+                <strong>TERM:</strong> <%= term.toUpperCase() %><br>
+                <strong>SESSION:</strong> <%= session %>
+            </div>
+        </div>
+
+        <div class="performance-section">
+            <div class="main-table">
+                <div class="title-banner section-title">2. ACADEMIC PERFORMANCE</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 38%;">SUBJECTS OFFERED</th>
+                            <th style="width: 8%; text-align: center;">CA (40)</th>
+                            <th style="width: 10%; text-align: center;">EXAM (60)</th>
+                            <th style="width: 11%; text-align: center;">TOTAL (100)</th>
+                            <th style="width: 10%; text-align: center;">GRADE</th>
+                            <th style="width: 15%; text-align: center;">REMARK</th>
+                            <th style="width: 8%; text-align: center;">RANK</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% 
+                            const isSenior = student.Class && (student.Class.toUpperCase().startsWith('SSS') || student.Class.toUpperCase().startsWith('SS'));
+                            let currentTotal = 0;
+                            scores.forEach(s => { 
+                                currentTotal += s.total_score;
+                                let gradeInfo;
+                                if (isSenior) {
+                                    if (s.total_score >= 75) gradeInfo = { g: 'A1', r: 'EXCELLENT', c: '#6a0dad' };
+                                    else if (s.total_score >= 71) gradeInfo = { g: 'B2', r: 'V. GOOD', c: '#2d0a4d' };
+                                    else if (s.total_score >= 65) gradeInfo = { g: 'B3', r: 'GOOD', c: '#16a34a' };
+                                    else if (s.total_score >= 61) gradeInfo = { g: 'C4', r: 'CREDIT', c: '#0ea5e9' };
+                                    else if (s.total_score >= 55) gradeInfo = { g: 'C5', r: 'CREDIT', c: '#0284c7' };
+                                    else if (s.total_score >= 50) gradeInfo = { g: 'C6', r: 'CREDIT', c: '#2563eb' };
+                                    else if (s.total_score >= 45) gradeInfo = { g: 'D7', r: 'PASS', c: '#d97706' };
+                                    else if (s.total_score >= 40) gradeInfo = { g: 'E8', r: 'PASS', c: '#ea580c' };
+                                    else gradeInfo = { g: 'F9', r: 'FAIL', c: '#dc2626' };
+                                } else {
+                                    if (s.total_score >= 70) gradeInfo = { g: 'A', r: 'EXCELLENT', c: '#6a0dad' };
+                                    else if (s.total_score >= 60) gradeInfo = { g: 'B', r: 'V. GOOD', c: '#2d0a4d' };
+                                    else if (s.total_score >= 50) gradeInfo = { g: 'C', r: 'GOOD', c: 'green' };
+                                    else if (s.total_score >= 45) gradeInfo = { g: 'D', r: 'PASS', c: 'orange' };
+                                    else gradeInfo = { g: 'F', r: 'FAIL', c: 'red' };
+                                }
+                        %>
+                            <tr>
+                                <td><%= s.subject.toUpperCase().replace(/_/g, ' ') %></td>
+                                <td style="text-align: center;"><%= s.ca_score %></td>
+                                <td style="text-align: center;"><%= s.exam_score %></td>
+                                <td style="color: <%= gradeInfo.c %>; font-weight: bold; text-align: center;"><%= s.total_score %></td>
+                                <td style="color: <%= gradeInfo.c %>; font-weight: bold; text-align: center;"><%= gradeInfo.g %></td>
+                                <td style="color: <%= gradeInfo.c %>; font-weight: bold; font-size: 8px; text-align: center; white-space: nowrap;">
+                                    <%= gradeInfo.r %>
+                                </td>
+                                <td style="color: <%= gradeInfo.c %>; font-weight: bold; text-align: center;"><%= s.rank %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+
+                <div class="summary-box" style="margin-top: 15px; border: 1px solid #6a0dad; background: #fdf2ff; padding: 10px;">
+                    <h4 class="section-title">7. RESULT ANALYSIS FOR YOUR <%= term.toUpperCase() %> EXAMINATION</h4>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 5px;">
+                        <div style="font-size: 13px; font-weight: 900; color: #6a0dad;">
+                            TOTAL MARKS OBTAINED: <span style="font-size: 18px; color: #000;"><%= grandTotal %></span>
+                        </div>
+                        <div style="text-align: right; font-size: 13px; font-weight: 900; color: #444;">
+                            AVERAGE: <span style="color: #6a0dad;"><%= grandTotal %> / <%= totalSubjects * 100 %></span>
+                            <span style="margin-left: 10px; font-size: 18px; color: #6a0dad; background: #fff; padding: 2px 8px; border: 1px solid #6a0dad; border-radius: 4px;">
+                                <%= currentAvg %>%
+                            </span>
+                        </div>
+                    </div>
+                    <% if (isSenior) { %>
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #6a0dad; background-color: #fff; font-size: 9px; color: #444; font-weight: bold; text-align: center;">
+                            <tbody>
+                                <tr>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px; width: 33.33%;">A1: 75-100 (EXCELLENT)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px; width: 33.33%;">B2: 71-74 (V. GOOD)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px; width: 33.33%;">B3: 65-70 (GOOD)</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px;">C4: 61-64 (CREDIT)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px;">C5: 55-60 (CREDIT)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px;">C6: 50-54 (CREDIT)</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px;">D7: 45-49 (PASS)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px;">E8: 40-44 (PASS)</td>
+                                    <td style="border: 1px solid #6a0dad; padding: 5px; color: #dc2626;">F9: 0-39 (FAIL)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    <% } else { %>
+                        <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed #6a0dad; font-size: 9px; color: #444; display: flex; justify-content: space-between; font-weight: bold;">
+                            <span>A: 70-100 (EXCELLENT)</span>
+                            <span>B: 60-69 (Very GOOD)</span>
+                            <span>C: 50-59 (GOOD)</span>
+                            <span>D: 45-49 (PASS)</span>
+                            <span>F: 0-44 (FAIL)</span>
+                        </div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div class="side-stats-container">
+                <div class="summary-box">
+                    <h4 class="section-title">3. SCORES SUMMARY</h4>
+                    <table style="font-size: 8px; margin-top: 5px;">
+                        <tbody>
+                            <tr>
+                                <td>First term's Average</td>
+                                <td style="width: 48px; text-align: center; font-weight: bold;"><%= t1Avg %>%</td>
+                            </tr>
+                    <% if (term.toLowerCase() === 'second term') { %>
+                            <tr>
+                                <td>Second term's Average</td>
+                                <td style="text-align: center; font-weight: bold;"><%= currentAvg %>%</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #6a0dad; font-weight: bold;">Cumulative Average</td>
+                                <td style="text-align: center; color: #6a0dad; font-weight: bold;"><%= cumulativeAvg %>%</td>
+                            </tr>
+                    <% } %>
+                    <% if (term.toLowerCase() === 'third term') { %>
+                            <tr>
+                                <td>Second term's Average</td>
+                                <td style="text-align: center; font-weight: bold;"><%= t2Avg %>%</td>
+                            </tr>
+                            <tr>
+                                <td>Third term's Average</td>
+                                <td style="text-align: center; font-weight: bold;"><%= currentAvg %>%</td>
+                            </tr>
+                            <tr>
+                                <td style="color: #6a0dad; font-weight: bold;">Cumulative Average</td>
+                                <td style="text-align: center; color: #6a0dad; font-weight: bold;"><%= cumulativeAvg %>%</td>
+                            </tr>
+                    <% } %>
+                            <tr>
+                                <td>Total Subjects Offered</td>
+                                <td style="text-align: center; font-weight: bold;"><%= totalSubjects %></td>
+                            </tr>
+                            <tr>
+                                <td style="font-weight: bold;">Class Position</td>
+                                <td style="text-align: center; color: #6a0dad; font-weight: bold;"><%= position %></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <% if (promoMsg) { %>
+                        <div style="margin-top: 10px; padding: 12px; background: #6a0dad; color: white; border-radius: 6px; text-align: center; font-weight: 900; font-size: 12px; text-transform: uppercase; box-shadow: 2px 2px 8px rgba(106, 13, 173, 0.4); border: 2px solid #9b30ff;">
+                            <%= promoMsg %>
+                        </div>
+                    <% } %>
+                </div>
+
+                <div class="summary-box" style="margin-top: 5px;">
+                    <h4 class="section-title">4. ATTENDANCE</h4>
+                    <table style="font-size: 8px;">
+                        <tr><td>Days School Opened</td><td style="width: 30px; text-align: center;"><%= typeof extra !== 'undefined' && extra.days_opened !== '' ? extra.days_opened : ' ' %></td></tr>
+                        <tr><td>Days Present</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.days_present !== '' ? extra.days_present : ' ' %></td></tr>
+                        <tr><td>Days Absent</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.days_absent !== '' ? extra.days_absent : ' ' %></td></tr>
+                        <tr><td>Reason</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.reason !== '' ? extra.reason : ' ' %></td></tr>
+                    </table>
+                </div>
+
+                <div class="summary-box" style="margin-top: 5px;">
+                    <h4 class="section-title">5. CHARACTER & CONDUCT</h4>
+                    <p style="font-size: 8px; text-align: center; margin-bottom: 2px;">(Scale: 5=Excellent, 1=Fair)</p>
+                    <table style="font-size: 8px;">
+                        <tr><td>Punctuality</td><td style="width: 30px; text-align: center;"><%= typeof extra !== 'undefined' && extra.punctuality !== '' ? extra.punctuality : ' ' %></td></tr>
+                        <tr><td>Neatness</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.neatness !== '' ? extra.neatness : ' ' %></td></tr>
+                        <tr><td>Obedience</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.obedience !== '' ? extra.obedience : ' ' %></td></tr>
+                        <tr><td>Honesty</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.honesty !== '' ? extra.honesty : ' ' %></td></tr>
+                        <tr><td>Discipline</td><td style="text-align: center;"><%= typeof extra !== 'undefined' && extra.discipline !== '' ? extra.discipline : ' ' %></td></tr>
+                    </table>
+                </div>
+
+                <div class="summary-box" style="margin-top: 5px;">
+                    <h4 class="section-title">6. EXTRACURRICULAR PARTICIPATION</h4>
+                    <table style="font-size: 9px;">
+                        <tr>
+                            <td style="font-weight: bold;">Club</td>
+                            <td><%= student.club || 'N/A' %></td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold;">Society</td>
+                            <td><%= student.society || 'N/A' %></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="comment-area">
+            <div class="comment-box">
+                <strong>CLASS TEACHER'S REMARK:</strong>
+                <p class="teacher-font"><%= typeof extra !== 'undefined' ? extra.teacher_comment : '' %></p>
+                <div class="sig">Teacher's Signature</div>
+            </div>
+            <div class="comment-box">
+                <strong>PRINCIPAL'S REMARK:</strong>
+                <p class="principal-font"><%- finalPrincipalRemark %></p>
+                <div class="sig"><strong>MRS. Idris.Lateefah.T</strong><br>Principal's Signature</div>
+            </div>
+        </div>
+
+        <div class="footer-date">
+            <% 
+                const d = new Date();
+                const dayStr = d.getDate();
+                const ord = (n) => {
+                    const s = ["th", "st", "nd", "rd"];
+                    const v = n % 100;
+                    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                };
+                const weekdayStr = d.toLocaleString('en-GB', { weekday: 'long' });
+                const monthStr = d.toLocaleString('en-GB', { month: 'long' }).toLowerCase();
+                const yearStr = d.getFullYear();
+                const timeStr = d.toLocaleTimeString('en-GB'); 
+            %>
+            Date Printed: <%= weekdayStr %>, <%= ord(dayStr) %> <%= monthStr %> <%= yearStr %> on the school's website tlmps.netlify.app as at <%= timeStr %>
+            <div style="margin-top: 10px; font-weight: 900; color: #6a0dad; font-size: 14px; text-align: center; text-transform: uppercase;">
+                Next term begins: <%= typeof extra !== 'undefined' && extra.next_term ? extra.next_term : '____________________' %>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function downloadPDF() {
+        const element = document.getElementById('result-sheet');
+        
+        // Clean Filename Logic
+        const sName = "<%= student.Name.split(' ')[0] %>";
+        const sClass = "<%= student.Class %>";
+        const sTerm = "<%= term.replace(/\s+/g, '_') %>";
+        const sSession = "<%= session.replace(/\//g, '_') %>";
+        
+        const fileName = `${sName}_${sClass}_${sTerm}_${sSession}.pdf`;
+
+        const opt = {
+            margin: 0,
+            filename: fileName,
+            image: { type: 'jpeg', quality: 1 },
+            html2canvas: { scale: 4, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save();
+    }
+    </script>
+</body>
+</html>

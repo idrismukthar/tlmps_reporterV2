@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Super-Admin Dashboard - TLMPS</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .navbar { background: #0d6efd; color: white; padding: 15px 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .navbar a { color: white; text-decoration: none; font-weight: bold; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 4px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+        .card h3 { margin-top: 0; color: #333; }
+        .btn { display: inline-block; background: #198754; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-top: 10px; font-weight: bold; }
+        .stat-box { font-size: 32px; font-weight: bold; color: #0d6efd; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="navbar">
+            <h2>TLMPS Super-Admin Portal</h2>
+            <a href="/superadmin/logout">Logout</a>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>Academic Sessions</h3>
+                <p>Active Sessions: <strong><%= sessions ? sessions.length : 0 %></strong></p>
+                <a href="/superadmin/sessions" class="btn">Manage Sessions & Terms</a>
+            </div>
+
+            <div class="card">
+                <h3>Subject & SSS Units</h3>
+                <p>Configure Course Weights</p>
+                <a href="/superadmin/subjects" class="btn" style="background: #0d6efd;">Manage Subjects</a>
+            </div>
+
+            <div class="card">
+                <h3>Score Entry</h3>
+                <p>Record and update student scores</p>
+                <a href="/teacher/login" class="btn">Record Scores</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

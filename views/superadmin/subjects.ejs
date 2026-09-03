@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Subjects - TLMPS</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
+        .container { max-width: 1100px; margin: 0 auto; }
+        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 25px; }
+        
+        .form-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: end; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        .btn-add { background: #198754; color: white; border: none; padding: 9px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        
+        .columns-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .subject-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .subject-table th, .subject-table td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; font-size: 14px; }
+        .subject-table th { background: #0d6efd; color: white; }
+        
+        .inline-form { display: flex; gap: 5px; margin: 0; }
+        .btn-update { background: #0d6efd; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; }
+        .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; text-decoration: none; }
+        a.back-btn { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/superadmin/dashboard" class="back-btn">&larr; Back to Dashboard</a>
+
+        <!-- Add Subject Form -->
+        <div class="card">
+            <h2 style="margin-top:0;">Add New Subject</h2>
+            <form action="/superadmin/add-subject" method="POST" class="form-grid">
+                <div class="form-group">
+                    <label>Subject Name</label>
+                    <input type="text" name="subject_name" placeholder="e.g. Mathematics" required autofocus>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="level_category" id="categorySelect" onchange="handleCategoryChange(this.value)" required>
+                        <option value="JSS">Junior Secondary (JSS)</option>
+                        <option value="SSS">Senior Secondary (SSS)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Unit Weight (SSS)</label>
+                    <input type="number" name="unit_weight" id="unitInput" value="1" min="1" max="6" disabled>
+                </div>
+                <button type="submit" class="btn-add">Add Subject</button>
+            </form>
+        </div>
+
+        <!-- Registered Subjects: Side by Side Table -->
+        <div class="columns-grid">
+            <!-- JSS Column -->
+            <div class="card">
+                <h3 style="color: #0d6efd; margin-top:0;">Junior Secondary (JSS) Subjects</h3>
+                <table class="subject-table">
+                    <thead>
+                        <tr>
+                            <th>Subject Name</th>
+                            <th style="width: 80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% const jssSubs = subjects.filter(s => s.level_category === 'JSS'); %>
+                        <% if (jssSubs.length === 0) { %>
+                            <tr><td colspan="2" style="text-align: center; color: #888;">No JSS subjects registered yet.</td></tr>
+                        <% } %>
+                        <% jssSubs.forEach(s => { %>
+                            <tr>
+                                <td><%= s.subject_name %></td>
+                                <td>
+                                    <a href="/superadmin/delete-subject/<%= s.subject_id %>" class="btn-delete" onclick="return confirm('Delete this subject?')">Delete</a>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- SSS Column -->
+            <div class="card">
+                <h3 style="color: #198754; margin-top:0;">Senior Secondary (SSS) Subjects</h3>
+                <table class="subject-table">
+                    <thead>
+                        <tr>
+                            <th>Subject Name</th>
+                            <th style="width: 70px;">Units</th>
+                            <th style="width: 110px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% const sssSubs = subjects.filter(s => s.level_category === 'SSS'); %>
+                        <% if (sssSubs.length === 0) { %>
+                            <tr><td colspan="3" style="text-align: center; color: #888;">No SSS subjects registered yet.</td></tr>
+                        <% } %>
+                        <% sssSubs.forEach(s => { %>
+                            <tr>
+                                <td><%= s.subject_name %></td>
+                                <td>
+                                    <form action="/superadmin/update-subject-unit" method="POST" class="inline-form">
+                                        <input type="hidden" name="subject_id" value="<%= s.subject_id %>">
+                                        <input type="number" name="unit_weight" value="<%= s.unit_weight %>" min="1" max="6" style="width: 45px; padding: 2px;">
+                                        <button type="submit" class="btn-update" title="Save Unit">✓</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <a href="/superadmin/delete-subject/<%= s.subject_id %>" class="btn-delete" onclick="return confirm('Delete this subject?')">Delete</a>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleCategoryChange(val) {
+            // Store selected category in browser storage
+            localStorage.setItem('lastSelectedCategory', val);
+            
+            const input = document.getElementById('unitInput');
+            if (val === 'SSS') {
+                input.disabled = false;
+            } else {
+                input.disabled = true;
+                input.value = 1;
+            }
+        }
+
+        // On Page Load: Restore last chosen selection
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedCategory = localStorage.getItem('lastSelectedCategory');
+            if (savedCategory) {
+                const select = document.getElementById('categorySelect');
+                select.value = savedCategory;
+                handleCategoryChange(savedCategory);
+            }
+        });
+    </script>
+</body>
+</html>

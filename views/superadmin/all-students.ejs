@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Students Roster - TLMPS</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+        .tab-btn { padding: 8px 16px; border: none; background: #e9ecef; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .tab-btn.active { background: #0d6efd; color: white; }
+        .student-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .student-table th, .student-table td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; font-size: 14px; }
+        .student-table th { background: #f1f3f5; }
+        .btn-view { background: #0d6efd; color: white; padding: 4px 10px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
+        a.back-btn { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/superadmin/dashboard" class="back-btn">&larr; Back to Dashboard</a>
+
+        <div class="card">
+            <h2>All Registered Students</h2>
+            
+            <div class="tabs">
+                <% ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'].forEach((cls, index) => { %>
+                    <button class="tab-btn <%= index === 0 ? 'active' : '' %>" onclick="showClass('<%= cls %>', this)"><%= cls %></button>
+                <% }); %>
+            </div>
+
+            <% ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'].forEach((cls, index) => { %>
+                <div id="class_<%= cls %>" class="class-section" style="display: <%= index === 0 ? 'block' : 'none' %>;">
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>Admission No</th>
+                                <th>Name</th>
+                                <th>Gender</th>
+                                <th>Department</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% const clsStudents = students.filter(s => s.class_name === cls); %>
+                            <% if (clsStudents.length === 0) { %>
+                                <tr><td colspan="5" style="text-align: center; color: #888;">No students registered in <%= cls %>.</td></tr>
+                            <% } %>
+                            <% clsStudents.forEach(s => { %>
+                                <tr>
+                                    <td><strong><%= s.admission_no %></strong></td>
+                                    <td><%= s.surname %> <%= s.middle_name || '' %> <%= s.last_name %></td>
+                                    <td><%= s.gender %></td>
+                                    <td><%= s.department || 'N/A' %></td>
+                                    <td>
+                                        <a href="/superadmin/student/<%= s.admission_no %>" class="btn-view">Profile</a>
+                                        <a href="/superadmin/student/<%= s.admission_no %>/edit" class="btn-view">Edit</a>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        </tbody>
+                    </table>
+                </div>
+            <% }); %>
+        </div>
+    </div>
+
+    <script>
+        function showClass(clsName, btn) {
+            document.querySelectorAll('.class-section').forEach(sec => sec.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('class_' + clsName).style.display = 'block';
+            btn.classList.add('active');
+        }
+    </script>
+</body>
+</html>

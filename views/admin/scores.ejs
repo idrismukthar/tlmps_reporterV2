@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Score Recording - <%= className %></title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 25px; background: #f8f9fa; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px 20px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .excel-box { background: #e9ecef; padding: 15px; border-radius: 6px; margin: 20px 0; display: flex; gap: 15px; align-items: center; }
+        table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 15px; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; }
+        th { background: #343a40; color: #fff; }
+        input[type="number"] { width: 70px; padding: 6px; text-align: center; }
+        .btn-save { background: #0d6efd; color: #fff; border: none; padding: 12px 25px; font-size: 16px; border-radius: 4px; cursor: pointer; float: right; margin-top: 15px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Class: <%= className %> | Subject: <%= subject ? subject.subject_name : '' %></h2>
+        <a href="/admin/login">Logout</a>
+    </div>
+
+    <!-- Excel Batch Import Option -->
+    <div class="excel-box">
+        <strong>Batch Upload via Excel:</strong>
+        <form action="/admin/upload-excel" method="POST" enctype="multipart/form-data" style="display: flex; gap: 10px;">
+            <input type="file" name="excel_file" accept=".xlsx, .xls" required>
+            <button type="submit" style="background: #198754; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Upload & Parse</button>
+        </form>
+    </div>
+
+    <!-- Manual Score Form -->
+    <form action="/admin/save-scores" method="POST">
+        <table>
+            <thead>
+                <tr>
+                    <th>Admission No</th>
+                    <th>Surname</th>
+                    <th>CA (40)</th>
+                    <th>MCQ </th>
+                    <th>Theory</th>
+                    <th>Total (100)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (students.length === 0) { %>
+                    <tr>
+                        <td colspan="6">No students enrolled in this class yet.</td>
+                    </tr>
+                <% } %>
+                <% students.forEach((st, index) => { %>
+                    <tr>
+                        <td>
+                            <%= st.admission_no %>
+                            <input type="hidden" name="scores[<%= index %>][enrollment_id]" value="<%= st.enrollment_id %>">
+                        </td>
+                        <td style="text-align: left;"><%= st.surname %> <%= st.last_name %></td>
+                        <td>
+                            <input type="number" step="0.1" max="40" min="0" name="scores[<%= index %>][ca]" value="<%= st.ca_score %>" oninput="calcTotal(this)">
+                        </td>
+                        <td>
+                            <input type="number" step="0.1" max="60" min="0" name="scores[<%= index %>][mcq]" value="<%= st.mcq_score %>" oninput="calcTotal(this)">
+                        </td>
+                        <td>
+                            <input type="number" step="0.1" max="60" min="0" name="scores[<%= index %>][theory]" value="<%= st.theory_score %>" oninput="calcTotal(this)">
+                        </td>
+                        <td>
+                            <strong class="total-val"><%= (st.ca_score + st.mcq_score + st.theory_score).toFixed(1) %></strong>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+
+        <% if (students.length > 0) { %>
+            <button type="submit" class="btn-save">Save Scores</button>
+        <% } %>
+    </form>
+
+    <script>
+        function calcTotal(input) {
+            const row = input.closest('tr');
+            const ca = parseFloat(row.querySelector('input[name*="[ca]"]').value) || 0;
+            const mcq = parseFloat(row.querySelector('input[name*="[mcq]"]').value) || 0;
+            const theory = parseFloat(row.querySelector('input[name*="[theory]"]').value) || 0;
+            row.querySelector('.total-val').innerText = (ca + mcq + theory).toFixed(1);
+        }
+    </script>
+</body>
+</html>
+
