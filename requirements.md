@@ -14,17 +14,17 @@ This document must be completed and agreed before coding begins.
 
 Please confirm the senior-school grade scale. The current report card uses:
 
-| Grade | Score Range | Grade Point | Remark |
-|---|---:|---:|---|
-| A1 | 75-100 | ? | Excellent |
-| B2 | 71-74 | ? | Very Good |
-| B3 | 65-70 | ? | Good |
-| C4 | 61-64 | ? | Credit |
-| C5 | 55-60 | ? | Credit |
-| C6 | 50-54 | ? | Credit |
-| D7 | 45-49 | ? | Pass |
-| E8 | 40-44 | ? | Pass |
-| F9 | 0-39 | ? | Fail |
+| Grade | Score Range | Grade Point | Remark    |
+| ----- | ----------: | ----------: | --------- |
+| A1    |      75-100 |           5 | Excellent |
+| B2    |       71-74 |         4.5 | Very Good |
+| B3    |       65-70 |         4.0 | Good      |
+| C4    |       61-64 |         3.5 | Credit    |
+| C5    |       55-60 |         3.0 | Credit    |
+| C6    |       50-54 |         2.5 | Credit    |
+| D7    |       45-49 |         2.0 | Pass      |
+| E8    |       40-44 |         1.0 | Pass      |
+| F9    |        0-39 |           0 | Fail      |
 
 Please provide the exact grade points for A1, B2, B3, C4, C5, C6, D7, E8, and F9.
 
@@ -123,9 +123,9 @@ Questions:
 
 Please select all required locations:
 
-- [ ] Student report card
+- [X] Student report card
 - [ ] Student portal session card
-- [ ] Student profile
+- [X] Student profile
 - [ ] Student performance audit
 - [ ] Teacher dashboard
 - [ ] Teacher score page
@@ -188,13 +188,13 @@ Please provide:
 
 ### One-Term GPA Example
 
-| Subject | Score | Grade | Grade Point | Units | Quality Points |
-|---|---:|---|---:|---:|---:|
-| Subject 1 |  |  |  |  |  |
-| Subject 2 |  |  |  |  |  |
-| Subject 3 |  |  |  |  |  |
-| Subject 4 |  |  |  |  |  |
-| Subject 5 |  |  |  |  |  |
+| Subject   | Score | Grade | Grade Point | Units | Quality Points |
+| --------- | ----: | ----- | ----------: | ----: | -------------: |
+| Subject 1 |       |       |             |       |                |
+| Subject 2 |       |       |             |       |                |
+| Subject 3 |       |       |             |       |                |
+| Subject 4 |       |       |             |       |                |
+| Subject 5 |       |       |             |       |                |
 
 - Total Units: `__________`
 - Total Quality Points: `__________`
@@ -202,11 +202,11 @@ Please provide:
 
 ### Multi-Term CGPA Example
 
-| Term | GPA | Units | Quality Points |
-|---|---:|---:|---:|
-| First Term |  |  |  |
-| Second Term |  |  |  |
-| Third Term |  |  |  |
+| Term        | GPA | Units | Quality Points |
+| ----------- | --: | ----: | -------------: |
+| First Term  |     |       |                |
+| Second Term |     |       |                |
+| Third Term  |     |       |                |
 
 - Expected CGPA: `__________`
 

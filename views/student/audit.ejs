@@ -44,7 +44,7 @@
 				<div class="row">
                     <div class="col-md-6 col-xs-8">
                         <a class="logo" href="/portal" style="text-decoration: none;">
-                            <img src="/img/tlmps_llogo.png" alt="Logo">
+                            <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="Logo">
                             <span class="logo-text">My TLMPS Profile</span>
                         </a>
                     </div>
@@ -147,6 +147,34 @@
                             </table>
                         </div>
                     </div>
+
+                    <% if (sessionSummaries && sessionSummaries.length > 0) { %>
+                        <% sessionSummaries.forEach(session => { %>
+                            <div class="audit-card">
+                                <h4><%= session.session_name %> | Class: <%= session.class_name %></h4>
+                                <div class="table-responsive">
+                                    <table class="table table-striped audit-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Term</th>
+                                                <th>GPA</th>
+                                                <th>CGPA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% session.terms.forEach(term => { %>
+                                                <tr>
+                                                    <td><strong><%= term.term_name %></strong></td>
+                                                    <td><%= term.gpa == null ? 'N/A' : Number(term.gpa).toFixed(2) %></td>
+                                                    <td><%= term.cgpa == null ? 'N/A' : Number(term.cgpa).toFixed(2) %></td>
+                                                </tr>
+                                            <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        <% }) %>
+                    <% } %>
 				</div>
 			</div>
 		</div>

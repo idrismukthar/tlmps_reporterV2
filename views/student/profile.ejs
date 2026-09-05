@@ -20,7 +20,7 @@
 				<div class="row">
                     <div class="col-md-6 col-xs-8">
                         <a class="logo" href="/portal" style="text-decoration: none;">
-                            <img src="/img/tlmps_llogo.png" alt="Logo" onerror="this.src='/img/tlmps_llogo.png'">
+                            <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="Logo" onerror="this.src='/img/tlmps_llogo_compressed_no_bg.png'">
                             <span class="logo-text">TLMPS Profile</span>
                         </a>
                     </div>
@@ -159,27 +159,46 @@
                         </div>
                     </div>
 
-                    <!-- Subjects Grouped by Session -->
-                    <% if (sessions && sessions.length > 0) { %>
-                        <% sessions.forEach(s => { %>
-                            <div class="profile-detail-card">
-                                <h3><i class="fa fa-book"></i> Registered Subjects in <%= s.session_name %> academic session</h3>
-                                <p style="font-size: 11px; color: #888; margin-top: -10px; margin-bottom: 15px;">Class: <%= s.class_name %></p>
-                                <div class="subject-list">
-                                    <% if (s.subjects) { %>
-                                        <% s.subjects.split(',').forEach(sub => { %>
-                                            <span class="subject-badge"><%= sub.replace(/_/g, ' ') %></span>
-                                        <% }) %>
-                                    <% } else { %>
-                                        <span style="color: #888; font-style: italic;">No subjects registered.</span>
-                                    <% } %>
+                    <!-- Session Performance Table -->
+                    <% if (sessionSummaries && sessionSummaries.length > 0) { %>
+                        <% sessionSummaries.forEach(session => { %>
+                            <div class="profile-detail-card" style="margin-top: 25px;">
+                                <h3><i class="fa fa-book"></i> <%= session.session_name %> Session Performance</h3>
+                                <p style="font-size: 12px; color: #555; margin-top: -8px; margin-bottom: 15px; font-weight: 600;">
+                                    Class: <%= session.class_name %>
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-striped" style="margin-bottom: 0; border: 1px solid #eee;">
+                                        <thead>
+                                            <tr style="background: #f3e8ff; color: #6a0dad;">
+                                                <th>Term</th>
+                                                <th>GPA</th>
+                                                <th>CGPA</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% if (session.terms && session.terms.length > 0) { %>
+                                                <% session.terms.forEach(term => { %>
+                                                    <tr>
+                                                        <td><%= term.term_name %></td>
+                                                        <td><%= term.gpa == null ? 'N/A' : Number(term.gpa).toFixed(2) %></td>
+                                                        <td><%= term.cgpa == null ? 'N/A' : Number(term.cgpa).toFixed(2) %></td>
+                                                    </tr>
+                                                <% }) %>
+                                            <% } else { %>
+                                                <tr>
+                                                    <td colspan="3" style="color: #888; font-style: italic; text-align: center;">No term results available yet.</td>
+                                                </tr>
+                                            <% } %>
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         <% }) %>
                     <% } else { %>
                         <div class="profile-detail-card">
-                            <h3><i class="fa fa-book"></i> Registered Subjects</h3>
-                            <p style="color: #888; font-style: italic;">No subjects registered yet.</p>
+                            <h3><i class="fa fa-book"></i> Session Performance</h3>
+                            <p style="color: #888; font-style: italic;">No academic session results yet.</p>
                         </div>
                     <% } %>
 
@@ -192,7 +211,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4">
-                    <img src="/img/tlmps_llogo.png" class="footer-logo" alt="TLMPS logo">
+                    <img src="/img/tlmps_llogo_compressed_no_bg.png" class="footer-logo" alt="TLMPS logo">
                     <p>The Leaders Memorial Private School.<br>We Nurture the Leaders of tomorrow.</p>
                 </div>
                 <div class="col-md-4 text-center">

@@ -9,10 +9,10 @@
     <style>
         body { font-family: 'DM Sans', sans-serif; background: #eee9f7; margin: 0; padding: 10px; }
         .no-print-btn { background: #6a0dad; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px auto; display: block; font-weight: bold; }
-        .report-card { background: white; width: 210mm; margin: auto; padding: 10mm; border: 2px solid #6a0dad; box-sizing: border-box; box-shadow: 0 12px 35px rgba(45, 10, 77, 0.18); position: relative; }
+        .report-card { background: white; width: 210mm; height: 285mm; margin: auto; padding: 7mm; border: 2px solid #6a0dad; box-sizing: border-box; box-shadow: 0 12px 35px rgba(45, 10, 77, 0.18); position: relative; overflow: hidden; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6a0dad; padding-bottom: 8px; }
-        .school-logo { width: 65px; height: 65px; object-fit: contain; }
-        .student-photo { width: 80px; height: 90px; border: 1px solid #6a0dad; object-fit: cover; }
+        .school-logo { width: 55px; height: 55px; object-fit: contain; }
+        .student-photo { width: 72px; height: 82px; border: 1px solid #6a0dad; object-fit: cover; }
         .school-info h2 { font-family: 'Playfair Display', serif; color: #6a0dad; margin: 0; font-size: 18px; text-align: center; text-transform: uppercase; }
         .school-info p { margin: 1px 0; text-align: center; font-size: 9px; color: #333; }
         .title-banner { background: #6a0dad; color: white; text-align: center; padding: 4px; margin: 8px 0; font-weight: bold; font-size: 11px; }
@@ -25,11 +25,13 @@
         th { background-color: #f2f2f2; font-size: 9px; }
         .summary-box { border: 1px solid #6a0dad; padding: 6px; background: #fff; }
         .summary-box p { margin: 2px 0; font-size: 10px; }
-        .comment-area { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .comment-box { border: 1px solid #888; padding: 6px; height: 115px; position: relative; }
-        .principal-font { font-family: 'Dancing Script', cursive; font-size: 14px; color: #1a1a1a; margin: 5px 0; line-height: 1.3;}
-        .teacher-font { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #1a1a1a; margin: 5px 0; line-height: 1.3;}
-        .sig { position: absolute; bottom: 3px; right: 8px; border-top: 1px solid #000; width: 110px; text-align: center; font-size: 8px; }
+        .comment-area { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+        .comment-box { border: 1px solid #888; padding: 8px; height: 180px; position: relative; box-sizing: border-box; }
+        .principal-font { font-family: 'Dancing Script', cursive; font-size: 14px; color: #1a1a1a; margin: 5px 0; line-height: 1.3; max-height: 85px; overflow: hidden; }
+        .teacher-font { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #1a1a1a; margin: 5px 0; line-height: 1.3; max-height: 125px; overflow: hidden; }
+        .sig { position: absolute; bottom: 8px; right: 8px; border-top: 1px solid #000; width: 125px; padding-top: 2px; text-align: center; font-size: 8px; }
+        .principal-sig { bottom: 8px; right: 8px; }
+        .principal-stamp { position: absolute; right: 18px; bottom: 30px; width: 70px; height: 70px; object-fit: contain; opacity: 0.9; }
         .footer-date { margin-top: 10px; font-size: 8px; color: #666; font-style: italic; border-top: 1px dotted #ccc; padding-top: 3px; }
     </style>
 </head>
@@ -39,7 +41,7 @@
 
     <div class="report-card" id="result-sheet">
         <div class="header">
-            <img src="/img/tlmps_llogo.png" class="school-logo" onerror="this.src='/img/tlmps_llogo.png'">
+            <img src="/img/tlmps_llogo_compressed_no_bg.png" class="school-logo" onerror="this.src='/img/tlmps_llogo_compressed_no_bg.png'">
             <div class="school-info">
                 <h2>THE LEADERS MEMORIAL PRIVATE SCHOOL</h2>
                 <p>Motto: We Nurture the Leaders of tomorrow</p>
@@ -139,6 +141,18 @@
                             </span>
                         </div>
                     </div>
+                    <% if (isSenior) { %>
+                        <div class="gpa-summary">
+                            <div class="gpa-values">
+                                <strong>GPA: <%= gpa === null ? 'N/A' : Number(gpa).toFixed(2) %></strong>
+                                <strong>CGPA: <%= cgpa === null ? 'N/A' : Number(cgpa).toFixed(2) %></strong>
+                            </div>
+                            <div class="gpa-definitions">
+                                <div><strong>GPA:</strong> Grade Point Average for this term.</div>
+                                <div><strong>CGPA:</strong> Cumulative Grade Point Average for this academic session.</div>
+                            </div>
+                        </div>
+                    <% } %>
                     <% if (isSenior) { %>
                         <table style="width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #6a0dad; background-color: #fff; font-size: 9px; color: #444; font-weight: bold; text-align: center;">
                             <tbody>
@@ -264,12 +278,13 @@
             <div class="comment-box">
                 <strong>CLASS TEACHER'S REMARK:</strong>
                 <p class="teacher-font"><%= typeof extra !== 'undefined' ? extra.teacher_comment : '' %></p>
-                <div class="sig">Teacher's Signature</div>
+                <div class="sig">Teacher's Name / Signature</div>
             </div>
             <div class="comment-box">
                 <strong>PRINCIPAL'S REMARK:</strong>
                 <p class="principal-font"><%- finalPrincipalRemark %></p>
-                <div class="sig"><strong>MRS. Idris.Lateefah.T</strong><br>Principal's Signature</div>
+                <img src="/img/schoolstamp.png" class="principal-stamp" alt="School stamp">
+                <div class="sig principal-sig"><strong>MRS. Idris.Lateefah.T</strong><br>Principal's Signature</div>
             </div>
         </div>
 
@@ -309,9 +324,22 @@
         const opt = {
             margin: 0,
             filename: fileName,
-            image: { type: 'jpeg', quality: 1 },
-            html2canvas: { scale: 4, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            image: { type: 'jpeg', quality: 2 },
+            html2canvas: {
+                scale: 3,
+                useCORS: true,
+                allowTaint: true,
+                letterRendering: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait',
+                compress: true
+            },
+            pagebreak: { mode: ['avoid-all'] }
         };
         html2pdf().set(opt).from(element).save();
     }

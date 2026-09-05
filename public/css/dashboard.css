@@ -85,8 +85,11 @@
 .report-card .summary-box > .section-title { margin: -6px -6px 6px !important; }
 .report-card .side-stats-container .section-title { font-size: 8px !important; white-space: nowrap !important; }
 .report-card .summary-box p { margin: 2px 0 !important; font-size: 10px !important; }
+.report-card .gpa-summary { margin-top: 8px; padding: 6px 8px; border: 1px solid var(--report-purple); background: #fff; color: var(--report-deep); }
+.report-card .gpa-values { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--report-purple); }
+.report-card .gpa-definitions { margin-top: 4px; font-size: 8px; line-height: 11px; }
 .report-card .comment-area { gap: 10px !important; margin-top: 8px !important; }
-.report-card .comment-box { height: 100px !important; padding: 6px !important; font-size: 10px !important; }
+.report-card .comment-box { height: 180px !important; padding: 8px !important; font-size: 10px !important; }
 .report-card .teacher-font,
 .report-card .principal-font { font-size: 13px !important; margin: 5px 0 !important; }
 .report-card .footer-date { margin-top: 8px !important; padding-top: 3px !important; font-size: 8px !important; }

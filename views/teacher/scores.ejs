@@ -66,6 +66,9 @@
             </div>
             <% if (typeof query !== 'undefined' && query.saved) { %><span class="saved">Scores saved</span><% } %>
         </div>
+        <% if (typeof query !== 'undefined' && query.error) { %>
+            <div class="score-error" style="display: block;"><%= query.error %></div>
+        <% } %>
         <div class="bulk-upload">
             <strong>Bulk upload</strong>
             <form method="POST" action="/teacher/scores/<%= session.session_id %>/<%= term.term_id %>/bulk-upload" enctype="multipart/form-data">
@@ -140,6 +143,7 @@
                 const values = [...row.querySelectorAll('input[type="number"]')].map((input) => Number(input.value) || 0);
                 const total = values[0] + values[1] + values[2];
                 if (total > 100) errors.push(`Total score for ${row.cells[0].textContent.trim()} ${row.cells[1].textContent.trim()} is above 100. Please make your correction.`);
+                if (values[1] + values[2] > 60) errors.push(`Exam score for ${row.cells[0].textContent.trim()} ${row.cells[1].textContent.trim()} is above 60. MCQ + Theory must not exceed 60.`);
             });
             if (errors.length) {
                 event.preventDefault();

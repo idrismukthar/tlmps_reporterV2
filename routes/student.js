@@ -57,6 +57,251 @@ const gradePoints = (score, isSenior) => {
   return 1;
 };
 
+const seniorGradePoint = (score) => {
+  if (score >= 75) return 5;
+  if (score >= 71) return 4.5;
+  if (score >= 65) return 4;
+  if (score >= 61) return 3.5;
+  if (score >= 55) return 3;
+  if (score >= 50) return 2.5;
+  if (score >= 45) return 2;
+  if (score >= 40) return 1;
+  return 0;
+};
+
+const calculateGpa = (rows) => {
+  const scoredRows = (rows || []).filter(
+    (row) => row.score_id != null || row.total_score != null,
+  );
+  const totals = scoredRows.reduce(
+    (result, row) => {
+      const units = Number(row.unit_weight) > 0 ? Number(row.unit_weight) : 1;
+      const qualityPoints =
+        seniorGradePoint(Number(row.total_score || 0)) * units;
+      result.qualityPoints += qualityPoints;
+      result.units += units;
+      return result;
+    },
+    { qualityPoints: 0, units: 0 },
+  );
+  return {
+    ...totals,
+    value: totals.units ? totals.qualityPoints / totals.units : null,
+  };
+};
+
+const calculateTermAveragePercent = (rows) => {
+  const scoredRows = (rows || []).filter(
+    (row) => row.score_id != null || row.total_score != null,
+  );
+
+  if (!scoredRows.length) return null;
+
+  const totalMarksObtained = scoredRows.reduce(
+    (total, row) => total + Number(row.total_score || 0),
+    0,
+  );
+  const maxObtainable = scoredRows.length * 100;
+
+  if (!maxObtainable) return null;
+  return (totalMarksObtained / maxObtainable) * 100;
+};
+
+const buildPromotionMessage = (currentClass, cumulativeAverage) => {
+  const className = String(currentClass || "")
+    .trim()
+    .toUpperCase();
+  const average = Number(cumulativeAverage || 0);
+
+  if (!className) return null;
+
+  if (average < 51) {
+    return `You are advised to repeat ${className}`;
+  }
+
+  const nextClassMap = {
+    JSS1: "JSS2",
+    JSS2: "JSS3",
+    JSS3: "Congratulations on finishing Junior Secondary School! You have been promoted to SSS1",
+    SSS1: "SSS2",
+    SSS2: "SSS3",
+    SSS3: "Congratulations on completing Secondary School! You have successfully completed your Secondary Education.",
+  };
+
+  if (nextClassMap[className]) {
+    const nextClass = nextClassMap[className];
+    if (className === "JSS3" || className === "SSS3") {
+      return nextClass;
+    }
+    return `Congratulations! You have been promoted to ${nextClass}`;
+  }
+
+  return "Congratulations! You have been promoted to the next class";
+};
+
+const buildPrincipalRemark = (average, rank, weakSubjects, studentKey = "") => {
+  const avg = Number(average || 0);
+  const rankNumber = Number(rank || 0);
+  const subjectList = [
+    ...new Set(
+      (weakSubjects || [])
+        .filter(Boolean)
+        .map((subject) => String(subject).trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 3);
+
+  const comments =
+    avg >= 80
+      ? [
+          "Congratulations on an exceptional performance this term. Your hard work and discipline are producing excellent results. Keep reaching for greater heights.",
+          "Excellent work this term. You have shown impressive commitment to your studies and a commendable desire to succeed. Maintain this standard.",
+          "You have delivered an outstanding performance this term. Your dedication is clearly reflected in your results. Keep up the excellent work.",
+          "This is a remarkable result. Your focus, consistency, and determination deserve great commendation. Continue to lead by example.",
+          "Congratulations on your brilliant performance. You have demonstrated a strong understanding of your work and admirable academic discipline.",
+          "You have performed excellently this term. Your results show that sincere effort and regular preparation bring rewarding outcomes. Keep progressing.",
+          "What an impressive performance this term. You have made excellent use of your abilities and should be proud of this achievement.",
+          "Your performance is truly commendable. You have displayed confidence, diligence, and a strong commitment to academic excellence.",
+          "Congratulations on a distinguished result. Your persistence and positive attitude have made a meaningful difference in your academic work.",
+          "You have achieved a superb performance this term. Continue with this level of seriousness and you will accomplish even more.",
+        ]
+      : avg >= 59
+        ? [
+            "You have had a very good term and your steady effort is commendable. Continue working consistently to reach an even higher level.",
+            "This is a good performance. Your determination is showing in your results, and greater focus will help you make an excellent improvement.",
+            "You have made commendable progress this term. Keep revising regularly and remain focused so that you can achieve even more next term.",
+            "Your result is encouraging and reflects good effort. With stronger consistency and attention to detail, you can move closer to excellence.",
+            "Well done on a good performance this term. Do not become complacent; keep building on this foundation through regular study.",
+            "You have shown a good level of commitment to your studies. Continue to work hard and aim for a stronger result next term.",
+            "This is a pleasing performance. Your effort is evident, and a little more concentration and persistence will help you improve further.",
+            "You have performed well this term. Keep asking questions, revising your lessons, and applying yourself more consistently.",
+            "Your results show promising ability and good progress. Stay disciplined in your preparation and you can achieve a much higher result.",
+            "You have done well this term and should be encouraged by your progress. Continue working diligently to turn this good performance into an excellent one.",
+          ]
+        : [
+            "Your performance this term is encouraging, but you need to apply yourself more consistently. With greater effort, you can make a strong improvement next term.",
+            "You have the ability to do better. Please devote more time to revision, complete your work diligently, and remain focused in class.",
+            "There is room for improvement in your performance. A more serious study routine and regular practice will help you achieve better results.",
+            "Your result shows that you can improve with greater commitment. Work harder, seek help when necessary, and prepare more thoroughly for assessments.",
+            "You made an effort this term, but you must be more consistent in your studies. Stay focused and work steadily toward a better result.",
+            "This performance can improve considerably. Take your lessons seriously, revise often, and do not hesitate to ask your teachers for guidance.",
+            "You have made a beginning, but more determination is needed. With discipline and sustained effort, you can produce a much stronger performance.",
+            "Your academic work requires more attention next term. Set clear study goals, practise regularly, and remain committed to improving.",
+            "You are capable of achieving more than this result shows. Increase your effort, strengthen your preparation, and approach your studies with confidence.",
+            "Keep working toward improvement. Greater concentration in class and a regular revision timetable will help you make meaningful progress next term.",
+          ];
+
+  const selectionKey = `${studentKey}-${Math.round(avg * 10)}-${rankNumber}-${subjectList.join("|")}`;
+  const selectionIndex =
+    [...selectionKey].reduce(
+      (total, character) => total + character.charCodeAt(0),
+      0,
+    ) % comments.length;
+  const opening = comments[selectionIndex];
+
+  const formatSubjectList = (subjects) => {
+    if (subjects.length === 1) return subjects[0];
+    if (subjects.length === 2) return `${subjects[0]} and ${subjects[1]}`;
+    return `${subjects.slice(0, -1).join(", ")} and ${subjects[subjects.length - 1]}`;
+  };
+
+  let topThreeNote = "";
+  if (Number.isFinite(rankNumber) && rankNumber > 0 && rankNumber <= 3) {
+    topThreeNote =
+      rankNumber === 1
+        ? " Congratulations on being the top of the class."
+        : " Congratulations on being one of the top three students in the class.";
+  }
+
+  const subjectReminder = subjectList.length
+    ? ` You need to work harder on ${formatSubjectList(subjectList)} so that your performance improves in those areas next term.`
+    : " Keep working consistently and keep your focus on your studies.";
+
+  return `${opening}${topThreeNote}${subjectReminder}`.trim();
+};
+
+const buildSessionPerformance = (rows) => {
+  const groupedSessions = new Map();
+
+  (rows || []).forEach((row) => {
+    const sessionId =
+      row.session_id ?? row.session ?? row.session_name ?? "unknown";
+    const sessionName = row.session_name || row.session || "Unknown Session";
+    const className = row.class_name || row.class || "N/A";
+
+    if (!groupedSessions.has(sessionId)) {
+      groupedSessions.set(sessionId, {
+        session_id: sessionId,
+        session_name: sessionName,
+        class_name: className,
+        terms: new Map(),
+      });
+    }
+
+    const sessionEntry = groupedSessions.get(sessionId);
+    const termKey =
+      row.term_id ?? `${row.term_name || "Term"}-${row.term_number || 0}`;
+
+    if (!sessionEntry.terms.has(termKey)) {
+      sessionEntry.terms.set(termKey, {
+        term_id: row.term_id,
+        term_name: row.term_name || "Term",
+        term_number: row.term_number || 1,
+        rows: [],
+      });
+    }
+
+    const termEntry = sessionEntry.terms.get(termKey);
+    if (row.score_id != null || row.total_score != null) {
+      termEntry.rows.push(row);
+    }
+  });
+
+  return Array.from(groupedSessions.values())
+    .map((sessionEntry) => {
+      let cumulativeQualityPoints = 0;
+      let cumulativeUnits = 0;
+
+      const terms = Array.from(sessionEntry.terms.values())
+        .sort(
+          (left, right) =>
+            Number(left.term_number || 0) - Number(right.term_number || 0),
+        )
+        .map((termEntry) => {
+          const stats = calculateGpa(termEntry.rows);
+          const qualityPoints = Number(stats.qualityPoints || 0);
+          const units = Number(stats.units || 0);
+          cumulativeQualityPoints += qualityPoints;
+          cumulativeUnits += units;
+          const runningCgpa = cumulativeUnits
+            ? cumulativeQualityPoints / cumulativeUnits
+            : null;
+
+          return {
+            term_id: termEntry.term_id,
+            term_name: termEntry.term_name,
+            term_number: termEntry.term_number,
+            gpa: stats.value == null ? null : Number(stats.value).toFixed(2),
+            cgpa: runningCgpa == null ? null : Number(runningCgpa).toFixed(2),
+          };
+        });
+
+      return {
+        session_id: sessionEntry.session_id,
+        session_name: sessionEntry.session_name,
+        class_name: sessionEntry.class_name,
+        terms,
+        cgpa: cumulativeUnits
+          ? Number(cumulativeQualityPoints / cumulativeUnits).toFixed(2)
+          : null,
+      };
+    })
+    .sort(
+      (left, right) =>
+        Number(left.session_id || 0) - Number(right.session_id || 0),
+    );
+};
+
 const termOrder = (termName) => {
   const name = String(termName || "").toLowerCase();
   if (name.includes("first")) return 1;
@@ -99,28 +344,54 @@ router.get("/audit", requireStudent, (req, res) => {
   studentFor(req, (studentErr, student) => {
     if (studentErr || !student) return res.redirect("/logout");
     db.all(
-      `SELECT a.session_name AS session, e.class_name AS class,
-              COUNT(DISTINCT ss.subject_id) AS totalSubjects,
-              COUNT(DISTINCT CASE WHEN sc.total_score >= 50 THEN ss.subject_id END) AS totalPassed,
-              COALESCE(AVG(sc.total_score), 0) AS average
+      `SELECT a.session_id, a.session_name AS session, e.class_name AS class,
+              t.term_id, t.term_name, t.term_number,
+              ss.subject_id, sub.unit_weight,
+              sc.score_id, sc.total_score
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
+       LEFT JOIN academic_terms t ON t.session_id = a.session_id
        LEFT JOIN student_subject_selections ss
          ON ss.admission_no = e.admission_no
         AND (ss.session_id = e.session_id OR ss.session_id IS NULL)
+       LEFT JOIN subjects sub ON sub.subject_id = ss.subject_id
        LEFT JOIN student_scores sc
          ON sc.admission_no = e.admission_no
         AND sc.session_id = e.session_id
+        AND sc.term_id = t.term_id
         AND sc.subject_id = ss.subject_id
        WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
-       GROUP BY a.session_id, a.session_name, e.class_name
-       ORDER BY a.session_id ASC`,
+       ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
-      (auditErr, auditData) => {
-        res.render("student/audit", {
-          student: legacyStudent(student),
-          auditData: auditErr ? [] : auditData || [],
-        });
+      (auditErr, sessionRows) => {
+        const detailedRows = auditErr ? [] : sessionRows || [];
+
+        db.all(
+          `SELECT a.session_name AS session, e.class_name AS class,
+                  COUNT(DISTINCT ss.subject_id) AS totalSubjects,
+                  COUNT(DISTINCT CASE WHEN sc.total_score >= 50 THEN ss.subject_id END) AS totalPassed,
+                  COALESCE(AVG(sc.total_score), 0) AS average
+           FROM academic_sessions a
+           JOIN academic_session_enrollments e ON e.session_id = a.session_id
+           LEFT JOIN student_subject_selections ss
+             ON ss.admission_no = e.admission_no
+            AND (ss.session_id = e.session_id OR ss.session_id IS NULL)
+           LEFT JOIN student_scores sc
+             ON sc.admission_no = e.admission_no
+            AND sc.session_id = e.session_id
+            AND sc.subject_id = ss.subject_id
+           WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
+           GROUP BY a.session_id, a.session_name, e.class_name
+           ORDER BY a.session_id ASC`,
+          [student.admission_no],
+          (summaryErr, auditData) => {
+            res.render("student/audit", {
+              student: legacyStudent(student),
+              auditData: summaryErr ? [] : auditData || [],
+              sessionSummaries: buildSessionPerformance(detailedRows),
+            });
+          },
+        );
       },
     );
   });
@@ -167,20 +438,35 @@ router.get("/profile", requireStudent, (req, res) => {
   studentFor(req, (studentErr, student) => {
     if (studentErr || !student) return res.redirect("/logout");
     db.all(
-      `SELECT a.session_name, e.class_name,
-              GROUP_CONCAT(DISTINCT sub.subject_name) AS subjects
+      `SELECT a.session_id, a.session_name, e.class_name,
+              t.term_id, t.term_name, t.term_number,
+              ss.subject_id, sub.subject_name, sub.unit_weight,
+              sc.score_id, sc.total_score
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
+       LEFT JOIN academic_terms t ON t.session_id = a.session_id
        LEFT JOIN student_subject_selections ss
          ON ss.admission_no = e.admission_no
         AND (ss.session_id = e.session_id OR ss.session_id IS NULL)
        LEFT JOIN subjects sub ON sub.subject_id = ss.subject_id
+       LEFT JOIN student_scores sc
+         ON sc.admission_no = e.admission_no
+        AND sc.session_id = e.session_id
+        AND sc.term_id = t.term_id
+        AND sc.subject_id = ss.subject_id
        WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
-       GROUP BY a.session_id, a.session_name, e.class_name
-       ORDER BY a.session_id DESC`,
+       ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
-      (err, sessions) =>
-        res.render("student/profile", { student, sessions: sessions || [] }),
+      (err, sessionRows) => {
+        const sessionSummaries = buildSessionPerformance(
+          err ? [] : sessionRows || [],
+        );
+        res.render("student/profile", {
+          student,
+          sessionSummaries,
+          sessions: sessionSummaries,
+        });
+      },
     );
   });
 });
@@ -203,7 +489,8 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
             if (enrollmentErr || termErr || !enrollment || !term)
               return res.status(404).send("Result not found");
             db.all(
-              `SELECT sub.subject_id, sub.subject_name, COALESCE(sc.ca_score, 0) AS ca_score,
+              `SELECT sub.subject_id, sub.subject_name, sub.unit_weight, sc.score_id,
+                      COALESCE(sc.ca_score, 0) AS ca_score,
                       COALESCE(sc.mcq_score, 0) AS mcq_score,
                       COALESCE(sc.theory_score, 0) AS theory_score,
                       COALESCE(sc.total_score, 0) AS total_score
@@ -352,25 +639,24 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                       0,
                     );
                     const totalSubjects = reportScores.length;
-                    const currentAvg = totalSubjects
-                      ? (grandTotal / totalSubjects).toFixed(1)
+                    const maxObtainable = totalSubjects * 100;
+                    const currentAvg = maxObtainable
+                      ? ((grandTotal / maxObtainable) * 100).toFixed(1)
                       : "0.0";
                     db.all(
-                      `SELECT t.term_id, t.term_name,
-                              COUNT(ss.subject_id) AS total_subjects,
-                              COUNT(sc.score_id) AS scored_subjects,
-                              COALESCE(AVG(COALESCE(sc.total_score, 0)), 0) AS average
+                      `SELECT t.term_id, t.term_name, sub.unit_weight, sc.score_id,
+                              sc.total_score
                        FROM academic_terms t
-                       LEFT JOIN student_subject_selections ss
+                       JOIN student_subject_selections ss
                          ON ss.admission_no = ?
                         AND (ss.session_id = ? OR ss.session_id IS NULL)
+                       JOIN subjects sub ON sub.subject_id = ss.subject_id
                        LEFT JOIN student_scores sc
                          ON sc.admission_no = ?
                         AND sc.session_id = ?
                         AND sc.term_id = t.term_id
                         AND sc.subject_id = ss.subject_id
                        WHERE t.session_id = ?
-                       GROUP BY t.term_id, t.term_name
                        ORDER BY t.term_id ASC`,
                       [
                         student.admission_no,
@@ -381,36 +667,101 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                       ],
                       (historyErr, historyRows) => {
                         const currentTermOrder = termOrder(term.term_name);
-                        const averagesThroughCurrent = (
-                          historyErr ? [] : historyRows || []
-                        )
+                        const historyByTerm = new Map();
+                        (historyErr ? [] : historyRows || []).forEach((row) => {
+                          if (!historyByTerm.has(row.term_id))
+                            historyByTerm.set(row.term_id, []);
+                          historyByTerm.get(row.term_id).push(row);
+                        });
+                        const termGpas = Array.from(historyByTerm.entries())
+                          .map(([termIdValue, rows]) => ({
+                            termId: termIdValue,
+                            termName: rows[0].term_name,
+                            stats: calculateGpa(rows),
+                          }))
+                          .filter((entry) => entry.stats.units > 0)
                           .filter(
-                            (row) =>
-                              termOrder(row.term_name) <= currentTermOrder &&
-                              row.scored_subjects > 0,
+                            (entry) =>
+                              termOrder(entry.termName) <= currentTermOrder,
                           )
                           .sort(
                             (left, right) =>
-                              termOrder(left.term_name) -
-                              termOrder(right.term_name),
+                              termOrder(left.termName) -
+                              termOrder(right.termName),
+                          );
+
+                        const termAverageEntries = Array.from(
+                          historyByTerm.entries(),
+                        )
+                          .map(([termIdValue, rows]) => ({
+                            termId: termIdValue,
+                            termName: rows[0].term_name,
+                            average: calculateTermAveragePercent(rows),
+                          }))
+                          .filter(
+                            (entry) =>
+                              entry.average !== null &&
+                              termOrder(entry.termName) <= currentTermOrder,
                           )
-                          .map((row) => Number(row.average || 0));
-                        const firstAverage = (historyRows || []).find(
-                          (row) =>
-                            termOrder(row.term_name) === 1 &&
-                            row.scored_subjects > 0,
+                          .sort(
+                            (left, right) =>
+                              termOrder(left.termName) -
+                              termOrder(right.termName),
+                          );
+
+                        const currentGpa = calculateGpa(
+                          scoresErr ? [] : scores || [],
                         );
-                        const secondAverage = (historyRows || []).find(
-                          (row) =>
-                            termOrder(row.term_name) === 2 &&
-                            row.scored_subjects > 0,
+                        const cumulativeStats = termGpas.reduce(
+                          (result, entry) => ({
+                            qualityPoints:
+                              result.qualityPoints + entry.stats.qualityPoints,
+                            units: result.units + entry.stats.units,
+                          }),
+                          { qualityPoints: 0, units: 0 },
                         );
-                        const cumulativeAverage = averagesThroughCurrent.length
-                          ? averagesThroughCurrent.reduce(
-                              (total, average) => total + average,
+                        const cumulativeGpa = cumulativeStats.units
+                          ? cumulativeStats.qualityPoints /
+                            cumulativeStats.units
+                          : null;
+                        const firstTermAverage = termAverageEntries.find(
+                          (entry) => termOrder(entry.termName) === 1,
+                        );
+                        const secondTermAverage = termAverageEntries.find(
+                          (entry) => termOrder(entry.termName) === 2,
+                        );
+                        const cumulativeAverageValue = termAverageEntries.length
+                          ? termAverageEntries.reduce(
+                              (total, entry) =>
+                                total + Number(entry.average || 0),
                               0,
-                            ) / averagesThroughCurrent.length
+                            ) / termAverageEntries.length
                           : Number(currentAvg);
+                        const promoMsg = String(term.term_name || "")
+                          .toLowerCase()
+                          .includes("third term")
+                          ? buildPromotionMessage(
+                              enrollment.class_name,
+                              cumulativeAverageValue,
+                            )
+                          : null;
+                        const classRank = positionByStudent.get(
+                          student.admission_no,
+                        );
+                        const lowScoringSubjects = (reportScores || [])
+                          .filter(
+                            (score) => Number(score.total_score || 0) <= 50,
+                          )
+                          .map(
+                            (score) =>
+                              score.subject_name || score.subject || "Subject",
+                          );
+                        const finalPrincipalRemark = buildPrincipalRemark(
+                          currentAvg,
+                          classRank,
+                          lowScoringSubjects,
+                          student.admission_no,
+                        );
                         res.render("student/dashboard", {
                           student: legacyStudent(student),
                           session: enrollment.session_name,
@@ -419,21 +770,22 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                           grandTotal,
                           totalSubjects,
                           currentAvg,
-                          t1Avg: firstAverage
-                            ? Number(firstAverage.average).toFixed(1)
+                          t1Avg: firstTermAverage
+                            ? Number(firstTermAverage.average).toFixed(1)
                             : "0.0",
-                          t2Avg: secondAverage
-                            ? Number(secondAverage.average).toFixed(1)
+                          t2Avg: secondTermAverage
+                            ? Number(secondTermAverage.average).toFixed(1)
                             : "0.0",
-                          cumulativeAvg: cumulativeAverage.toFixed(1),
+                          cumulativeAvg: cumulativeAverageValue.toFixed(1),
+                          gpa: currentGpa.value,
+                          cgpa: cumulativeGpa,
                           position: positionByStudent.has(student.admission_no)
                             ? ordinal(
                                 positionByStudent.get(student.admission_no),
                               )
                             : "-",
-                          promoMsg: null,
-                          finalPrincipalRemark:
-                            "Keep working hard and aiming higher.",
+                          promoMsg,
+                          finalPrincipalRemark,
                           extra: {
                             days_opened: term.days_school_opened || "",
                             days_present: "",
@@ -460,5 +812,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
     );
   });
 });
+
+router.buildSessionPerformance = buildSessionPerformance;
 
 module.exports = router;

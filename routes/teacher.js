@@ -170,6 +170,7 @@ router.post("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
       const allowed = new Set(
         (allowedRows || []).map((row) => row.admission_no),
       );
+      const validationErrors = [];
       const cleanScores = scores
         .filter((score) => allowed.has(score.admission_no))
         .map((score) => {
@@ -185,9 +186,14 @@ router.post("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
             mcq > 60 ||
             theory < 0 ||
             theory > 60 ||
+            mcq + theory > 60 ||
             ca + exam > 100
-          )
+          ) {
+            validationErrors.push(
+              `Admission ${score.admission_no} has an invalid score. CA must be 0-40, and MCQ + Theory must not exceed 60.`,
+            );
             return null;
+          }
           return [
             score.admission_no,
             sessionId,
@@ -202,17 +208,33 @@ router.post("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
           ];
         })
         .filter(Boolean);
+      if (validationErrors.length) {
+        return res.redirect(
+          `/teacher/scores/${sessionId}/${termId}?error=${encodeURIComponent(validationErrors.slice(0, 3).join(" "))}`,
+        );
+      }
       db.serialize(() => {
         db.run("BEGIN TRANSACTION");
         const statement = db.prepare(
           `INSERT INTO student_scores (admission_no, session_id, term_id, subject_id, class_name, ca_score, mcq_score, theory_score, exam_score, total_score) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(admission_no, session_id, term_id, subject_id) DO UPDATE SET class_name = excluded.class_name, ca_score = excluded.ca_score, mcq_score = excluded.mcq_score, theory_score = excluded.theory_score, exam_score = excluded.exam_score, total_score = excluded.total_score`,
         );
         cleanScores.forEach((score) => statement.run(score));
-        statement.finalize(() =>
-          db.run("COMMIT", () =>
-            res.redirect(`/teacher/scores/${sessionId}/${termId}?saved=1`),
-          ),
-        );
+        statement.finalize((statementError) => {
+          if (statementError) {
+            return db.run("ROLLBACK", () =>
+              res.redirect(
+                `/teacher/scores/${sessionId}/${termId}?error=${encodeURIComponent("Unable to save scores. Check that MCQ + Theory does not exceed 60.")}`,
+              ),
+            );
+          }
+          db.run("COMMIT", (commitError) => {
+            if (commitError)
+              return res.redirect(
+                `/teacher/scores/${sessionId}/${termId}?error=${encodeURIComponent("Unable to save scores. Please try again.")}`,
+              );
+            res.redirect(`/teacher/scores/${sessionId}/${termId}?saved=1`);
+          });
+        });
       });
     },
   );
@@ -255,6 +277,7 @@ router.post(
             .toLowerCase()
             .replace(/[()]/g, "")
             .replace(/\s+/g, "_");
+        const importErrors = [];
         const imported = rows
           .map((row) => {
             const values = {};
@@ -265,8 +288,8 @@ router.post(
             const ca = Number(values.ca_40_marks);
             const mcq = Number(values.mcq_30_marks);
             const theory = Number(values.theory_30_marks);
+            if (!allowed.has(admissionNo)) return null;
             if (
-              !allowed.has(admissionNo) ||
               ![ca, mcq, theory].every(Number.isFinite) ||
               ca < 0 ||
               ca > 40 ||
@@ -274,9 +297,14 @@ router.post(
               mcq > 60 ||
               theory < 0 ||
               theory > 60 ||
+              mcq + theory > 60 ||
               ca + mcq + theory > 100
-            )
+            ) {
+              importErrors.push(
+                `Admission ${admissionNo || "(blank)"} has an invalid score. CA must be 0-40, and MCQ + Theory must not exceed 60.`,
+              );
               return null;
+            }
             return [
               admissionNo,
               sessionId,
@@ -291,6 +319,12 @@ router.post(
             ];
           })
           .filter(Boolean);
+
+        if (importErrors.length) {
+          return res.redirect(
+            `/teacher/scores/${sessionId}/${termId}?error=${encodeURIComponent(importErrors.slice(0, 3).join(" "))}`,
+          );
+        }
 
         db.serialize(() => {
           db.run("BEGIN TRANSACTION");
