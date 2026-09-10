@@ -2,17 +2,23 @@
 <html>
 <head>
     <title><%= student.Name %> - Academic Profile</title>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700&family=Dancing+Script:wght@600&family=Graduate&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/student.css">
     <link rel="stylesheet" href="/css/dashboard.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { font-family: 'DM Sans', sans-serif; background: #eee9f7; margin: 0; padding: 10px; }
-        .no-print-btn { background: #6a0dad; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px auto; display: block; font-weight: bold; }
+        .no-print-btn { background: #6a0dad; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 10px auto; display: block; font-weight: bold; transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; }
+        .no-print-btn:hover:not(:disabled) { background: #4b087a; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(106, 13, 173, 0.35); }
+        .no-print-btn:active:not(:disabled) { transform: translateY(0); box-shadow: 0 2px 6px rgba(106, 13, 173, 0.25); }
+        .no-print-btn:disabled { opacity: 0.65; cursor: wait; }
         .report-card { background: white; width: 210mm; height: 285mm; margin: auto; padding: 7mm; border: 2px solid #6a0dad; box-sizing: border-box; box-shadow: 0 12px 35px rgba(45, 10, 77, 0.18); position: relative; overflow: hidden; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6a0dad; padding-bottom: 8px; }
         .school-logo { width: 55px; height: 55px; object-fit: contain; }
         .student-photo { width: 72px; height: 82px; border: 1px solid #6a0dad; object-fit: cover; }
+        .photo-block { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .department-badge { color: #6a0dad; font-family: 'Varsity Regular', 'Varsity', 'Graduate', 'Alfa Slab One', sans-serif; font-size: 18px; font-weight: 400; letter-spacing: .5px; text-align: center; text-transform: uppercase; white-space: nowrap; margin-bottom: 2px; }
         .school-info h2 { font-family: 'Playfair Display', serif; color: #6a0dad; margin: 0; font-size: 18px; text-align: center; text-transform: uppercase; }
         .school-info p { margin: 1px 0; text-align: center; font-size: 9px; color: #333; }
         .title-banner { background: #6a0dad; color: white; text-align: center; padding: 4px; margin: 8px 0; font-weight: bold; font-size: 11px; }
@@ -29,13 +35,26 @@
         .comment-box { border: 1px solid #888; padding: 8px; height: 180px; position: relative; box-sizing: border-box; }
         .principal-font { font-family: 'Dancing Script', cursive; font-size: 14px; color: #1a1a1a; margin: 5px 0; line-height: 1.3; max-height: 85px; overflow: hidden; }
         .teacher-font { font-family: 'Times New Roman', Times, serif; font-size: 13px; color: #1a1a1a; margin: 5px 0; line-height: 1.3; max-height: 125px; overflow: hidden; }
-        .sig { position: absolute; bottom: 8px; right: 8px; border-top: 1px solid #000; width: 125px; padding-top: 2px; text-align: center; font-size: 8px; }
-        .principal-sig { bottom: 8px; right: 8px; }
-        .principal-stamp { position: absolute; right: 18px; bottom: 30px; width: 70px; height: 70px; object-fit: contain; opacity: 0.9; }
+        .sig { position: absolute; bottom: 8px; right: 8px; border-top: 1px solid #000; width: 125px; padding-top: 2px; text-align: center; font-size: 8px; z-index: 3; }
+        .principal-sig { bottom: 8px; right: 10px; width: 135px; }
+        .principal-signature { position: absolute; right: 25px; bottom: 24px; width: 105px; height: 42px; object-fit: contain; z-index: 2; }
+        .principal-stamp { position: absolute; right: 38px; bottom: 12px; width: 82px; height: 82px; object-fit: contain; opacity: 0.85; z-index: 1; pointer-events: none; }
         .footer-date { margin-top: 10px; font-size: 8px; color: #666; font-style: italic; border-top: 1px dotted #ccc; padding-top: 3px; }
     </style>
 </head>
 <body>
+
+    <% 
+        const isSeniorClass = /^SSS?\s*[1-3]/i.test(String(student.Class || '').trim());
+        const departmentName = String(student.department || '').trim().toLowerCase();
+        const departmentLabel = departmentName.includes('science')
+            ? 'SCIENCE STUDENT'
+            : departmentName.includes('art')
+                ? 'ARTS STUDENT'
+                : departmentName.includes('commercial') || departmentName.includes('commerce')
+                    ? 'COMMERCIAL STUDENT'
+                    : departmentName ? `${departmentName.toUpperCase()} STUDENT` : '';
+    %>
 
     <button class="no-print-btn" onclick="downloadPDF()">📥 Download Result PDF</button>
 
@@ -48,7 +67,10 @@
                 <p>Address: 17, Shoye Odubana Street, Off Papa Major B/stop, Ijegun-Ikotun, Lagos.</p>
                 <p>Contact: contacttlmps@gmail.com | 08034417992 <br> <p>website: <tlmps class="netlify app">tlmps.netlify.app</tlmps></p></p>
             </div>
-            <img src="<%= student.Passport || '/img/default-avatar.png' %>" class="student-photo" onerror="this.src='/img/default-avatar.png'">
+            <div class="photo-block">
+                <% if (isSeniorClass && departmentLabel) { %><div class="department-badge"><%= departmentLabel %></div><% } %>
+                <img src="<%= student.Passport || '/img/default-avatar.png' %>" class="student-photo" onerror="this.src='/img/default-avatar.png'">
+            </div>
         </div>
 
         <div class="title-banner" style="text-align: left; padding-left: 10px;">
@@ -63,9 +85,6 @@
             <div>
                 <strong>CLASS:</strong> <%= student.Class %><br>
                 <strong>GENDER:</strong> <%= student.Sex %>
-                <% if (student.Class && student.Class.toUpperCase().startsWith('SSS')) { %>
-                    <br><strong>DEPARTMENT:</strong> <%= student.department || 'N/A' %>
-                <% } %>
             </div>
             <div style="text-align: right;">
                 <strong>TERM:</strong> <%= term.toUpperCase() %><br>
@@ -234,6 +253,11 @@
                             <%= promoMsg %>
                         </div>
                     <% } %>
+                    <% if (typeof resultStatus !== 'undefined' && resultStatus) { %>
+                        <div style="margin-top: 10px; padding: 12px; background: #fff7ed; color: #9a3412; border: 2px solid #fb923c; border-radius: 6px; text-align: center; font-weight: 900; font-size: 12px; text-transform: uppercase;">
+                            <%= resultStatus %>
+                        </div>
+                    <% } %>
                 </div>
 
                 <div class="summary-box" style="margin-top: 5px;">
@@ -275,15 +299,16 @@
         </div>
 
         <div class="comment-area">
-            <div class="comment-box">
+                <div class="comment-box">
                 <strong>CLASS TEACHER'S REMARK:</strong>
                 <p class="teacher-font"><%= typeof extra !== 'undefined' ? extra.teacher_comment : '' %></p>
-                <div class="sig">Teacher's Name / Signature</div>
+                <div class="sig"><%= typeof extra !== 'undefined' && extra.teacher_name ? extra.teacher_name : "Class Teacher's Name" %><br>Class Teacher's Signature</div>
             </div>
             <div class="comment-box">
                 <strong>PRINCIPAL'S REMARK:</strong>
                 <p class="principal-font"><%- finalPrincipalRemark %></p>
                 <img src="/img/schoolstamp.png" class="principal-stamp" alt="School stamp">
+                <img src="/img/signature.png" class="principal-signature" alt="Principal's signature">
                 <div class="sig principal-sig"><strong>MRS. Idris.Lateefah.T</strong><br>Principal's Signature</div>
             </div>
         </div>
@@ -301,10 +326,27 @@
                 const monthStr = d.toLocaleString('en-GB', { month: 'long' }).toLowerCase();
                 const yearStr = d.getFullYear();
                 const timeStr = d.toLocaleTimeString('en-GB'); 
+                const formatNextTermDate = (value) => {
+                    if (!value) return '____________________';
+                    const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                    if (!match) return value;
+                    const date = new Date(Date.UTC(
+                        Number(match[1]),
+                        Number(match[2]) - 1,
+                        Number(match[3]),
+                    ));
+                    if (Number.isNaN(date.getTime())) return value;
+                    const day = Number(match[3]);
+                    const suffix =
+                        day % 100 >= 11 && day % 100 <= 13
+                            ? 'th'
+                            : ({ 1: 'st', 2: 'nd', 3: 'rd' }[day % 10] || 'th');
+                    return `${date.toLocaleString('en-GB', { weekday: 'long', timeZone: 'UTC' })}, ${day}${suffix}, ${date.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' })} ${match[1]}`;
+                };
             %>
             Date Printed: <%= weekdayStr %>, <%= ord(dayStr) %> <%= monthStr %> <%= yearStr %> on the school's website tlmps.netlify.app as at <%= timeStr %>
             <div style="margin-top: 10px; font-weight: 900; color: #6a0dad; font-size: 14px; text-align: center; text-transform: uppercase;">
-                Next term begins: <%= typeof extra !== 'undefined' && extra.next_term ? extra.next_term : '____________________' %>
+                Next term begins: <%= formatNextTermDate(typeof extra !== 'undefined' ? extra.next_term : '') %>
             </div>
         </div>
     </div>
@@ -321,27 +363,60 @@
         
         const fileName = `${sName}_${sClass}_${sTerm}_${sSession}.pdf`;
 
-        const opt = {
-            margin: 0,
-            filename: fileName,
-            image: { type: 'jpeg', quality: 2 },
-            html2canvas: {
-                scale: 3,
-                useCORS: true,
-                allowTaint: true,
-                letterRendering: true,
-                logging: false,
-                backgroundColor: '#ffffff'
-            },
-            jsPDF: {
+        const downloadButton = document.querySelector('.no-print-btn');
+        const originalLabel = downloadButton.innerHTML;
+        downloadButton.disabled = true;
+        downloadButton.textContent = 'Preparing PDF...';
+        document.body.classList.add('report-export');
+
+        if (typeof html2canvas !== 'function') {
+            downloadButton.disabled = false;
+            downloadButton.innerHTML = originalLabel;
+            window.alert('The PDF renderer could not be loaded. Please refresh the page and try again.');
+            return;
+        }
+
+        html2canvas(element, {
+            scale: 2.5,
+            windowWidth: 1280,
+            windowHeight: 1800,
+            useCORS: true,
+            allowTaint: true,
+            letterRendering: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            width: element.scrollWidth,
+            height: element.scrollHeight,
+        }).then((canvas) => {
+            const JsPdf = window.jspdf && window.jspdf.jsPDF;
+            if (!JsPdf) throw new Error('jsPDF did not load');
+            const pdf = new JsPdf({
                 unit: 'mm',
                 format: 'a4',
                 orientation: 'portrait',
-                compress: true
-            },
-            pagebreak: { mode: ['avoid-all'] }
-        };
-        html2pdf().set(opt).from(element).save();
+                compress: true,
+            });
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const imageRatio = canvas.width / canvas.height;
+            let imageWidth = pageWidth;
+            let imageHeight = pageWidth / imageRatio;
+            if (imageHeight > pageHeight) {
+                imageHeight = pageHeight;
+                imageWidth = pageHeight * imageRatio;
+            }
+            const left = (pageWidth - imageWidth) / 2;
+            const top = (pageHeight - imageHeight) / 2;
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', left, top, imageWidth, imageHeight);
+            pdf.save(fileName);
+        }).catch((error) => {
+            console.error('Report PDF generation failed:', error);
+            window.alert('The PDF could not be generated. Please refresh the page and try again.');
+        }).finally(() => {
+            document.body.classList.remove('report-export');
+            downloadButton.disabled = false;
+            downloadButton.innerHTML = originalLabel;
+        });
     }
     </script>
 </body>

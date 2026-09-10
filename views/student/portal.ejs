@@ -3,86 +3,81 @@
 <!--[if IE 9]> <html lang="en" class="ie9"> <![endif]-->
 <!--[if !IE]><!--> <html lang="en"> <!--<![endif]-->
 <head>
-	<title>Student Portal | Dashboard</title>
+	<title>Student Portal | The Leaders Memorial Private School</title>
 
 	<!-- Meta -->
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-	<!-- Local Styles for Offline Support -->
+	<!-- Plus Jakarta Sans — TLMPS Brand Font -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+	<!-- Local Styles -->
     <link rel="stylesheet" href="/css/style.css">
-    
-    <!-- Fallback for Icons if FontAwesome fails (Optional: You'd need to download fonts to be truly offline) -->
-    <style>
-        .fa { display: inline-block; font-style: normal; }
-    </style>
 </head>
 <body>
 	<div class="wrapper">
-		<!--=== Header ===-->
-		<div class="header">
-			<div class="container">
-				<div class="row">
-                    <div class="col-md-6 col-xs-8">
-                        <a class="logo" href="/portal" style="text-decoration: none;">
-                            <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="Logo" onerror="this.src='/img/tlmps_llogo_compressed_no_bg.png'">
-                            <span class="logo-text">My TLMPS Profile</span>
-                        </a>
-                    </div>
-                    <div class="col-md-6 col-xs-4 text-right topbar">
-                        <div class="hidden-xs">
-                             Have questions? <a href="mailto:contacttlmps@gmail.com">Contact Us</a>
-                        </div>
-                    </div>
-                </div>
+		<!--=== Topbar ===-->
+		<div class="portal-topbar">
+			<div class="portal-topbar-inner">
+				<a class="portal-topbar-brand" href="/portal">
+					<img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS Logo" onerror="this.src='/img/tlmps_llogo_compressed_no_bg.png'">
+					<div class="portal-topbar-divider"></div>
+					<div class="portal-topbar-text">
+						<span class="portal-topbar-title">The Leaders Memorial Private School</span>
+						<span class="portal-topbar-subtitle">Student Portal</span>
+					</div>
+				</a>
+				<div class="portal-topbar-actions">
+					<a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=contacttlmps%40gmail.com&amp;su=Enquiry%20-%20The%20Leaders%20Memorial%20Private%20School" target="_blank" rel="noopener noreferrer" class="btn-ghost portal-contact-btn" aria-label="Compose an email to The Leaders Memorial Private School">
+						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555zM0 4.697v7.104l5.803-3.558L0 4.697zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757zM16 11.801V4.697l-5.803 3.546L16 11.801z"/></svg>
+						<span>Contact Us</span>
+					</a>
+					<button type="button" class="student-menu-toggle" aria-controls="student-drawer" aria-expanded="false">
+						<span class="menu-icon" aria-hidden="true">&#9776;</span><span class="menu-label">Menu</span>
+					</button>
+				</div>
 			</div>
 		</div>
-		<!--=== End Header ===-->
-
-		<!--=== Breadcrumbs ===-->
-		<div class="breadcrumbs">
-			<div class="container">
-				<h1 class="pull-left"></h1>
-                <div class="pull-right hidden-xs" style="color: #6a0dad; font-weight: bold;">
-                    <i class="fa fa-calendar"></i> <span id="currentDate"></span>
-                </div>
-			</div>
-		</div>
-		<!--=== End Breadcrumbs ===-->
+		<!--=== End Topbar ===-->
 
 		<!--=== Content Part ===-->
-		<div class="container content">
+		<div class="container content portal-content">
 			<div class="row">
 				<!-- Begin Sidebar Menu -->
-				<div class="col-md-3 md-margin-bottom-40">
+                <div class="col-md-3 md-margin-bottom-40" id="student-drawer">
                     <div class="sidebar-nav-v1">
-                        <!-- Profile Header -->
-                        <div class="profile-section">
-                            <!-- Attempt to load student image by passport column or admission number -->
-                            <img class="img-circle profile-img" 
+                        <!-- Profile Hero Card -->
+                        <div class="profile-hero-card">
+                            <div class="profile-hero-orb profile-hero-orb--1"></div>
+                            <div class="profile-hero-orb profile-hero-orb--2"></div>
+                            <!-- Student avatar -->
+                            <img class="profile-hero-avatar" 
                                  src="<%= student.Passport || '/img/' + student.Admission_no + '.jpg' %>" 
                                  alt="<%= student.Name %>" 
-                                 onerror="this.src='/img/default-avatar.png';"> <!-- Fallback -->
-                            <h4 style="font-weight: bold; color: #6a0dad; margin-bottom: 5px;"><%= student.Name %></h4>
-                            <span class="label label-success" style="font-size: 12px; background: #a7d129;"><%= student.Admission_no %></span>
-                            <p style="margin-top: 10px; font-weight: 600; margin-bottom: 5px;"><%= student.Class %></p>
+                                 onerror="this.src='/img/default-avatar.png';">
+                            <h4 class="profile-hero-name"><%= student.Name %></h4>
+                            <span class="profile-hero-badge profile-hero-badge--admission"><%= student.Admission_no %></span>
+                            <span class="profile-hero-badge profile-hero-badge--class"><%= student.Class %></span>
                             <% if (student.department) { %>
-                                <p style="margin-top: 0px; font-weight: 600; color: #444;">DEPARTMENT: <%= student.department %></p>
+                                <span class="profile-hero-dept"><%= student.department %></span>
                             <% } %>
                         </div>
 
-                        <ul class="list-group">
+                        <ul class="list-group student-nav-links">
                             <li class="list-group-item active">
-                                <a href="/portal"><i class="fa fa-home"></i> View All My Results</a>
+                                <a href="/portal"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M1 2.828c.885-.37 2.154-.769 3.388-.893 1.33-.134 2.458.063 3.112.752v9.746c-.935-.53-2.12-.603-3.213-.493-1.18.12-2.37.461-3.287.811V2.828zm7.5-.141c.654-.689 1.782-.886 3.112-.752 1.234.124 2.503.523 3.388.893v9.923c-.918-.35-2.107-.692-3.287-.81-1.094-.111-2.278-.039-3.213.492V2.687zM8 1.783C7.015.936 5.587.81 4.287.94c-1.514.153-3.042.672-3.994 1.105A.5.5 0 0 0 0 2.5v11a.5.5 0 0 0 .707.455c.882-.4 2.303-.881 3.68-1.02 1.409-.142 2.59.087 3.223.877a.5.5 0 0 0 .78 0c.633-.79 1.814-1.019 3.222-.877 1.378.139 2.8.62 3.681 1.02A.5.5 0 0 0 16 13.5v-11a.5.5 0 0 0-.293-.455c-.952-.433-2.48-.952-3.994-1.105C10.413.809 8.985.936 8 1.783z"/></svg> My Results</a>
                             </li>
                             <li class="list-group-item">
-                                <a href="/audit"><i class="fa fa-bar-chart"></i> Performance Audit</a>
+                                <a href="/audit"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 11H2v3h2v-3zm5-4H7v7h2V7zm5-5h-2v12h2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1h-2zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3z"/></svg> Performance Audit</a>
                             </li>
                             <li class="list-group-item">
-                                <a href="/profile"><i class="fa fa-user"></i> My Profile</a>
+                                <a href="/profile"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/><path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1z"/></svg> My Profile</a>
                             </li>
                             <li class="list-group-item">
-                                <a href="/logout"><i class="fa fa-sign-out"></i> Logout</a>
+                                <a href="/logout"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/><path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/></svg> Logout</a>
                             </li>
                         </ul>
                     </div>
@@ -90,38 +85,47 @@
 				<!-- End Sidebar Menu -->
 
 				<!-- Begin Content -->
-				<div class="col-md-9">
-                    <div class="headline"><h2>My School Results</h2></div>
+                <div class="col-md-9 portal-main">
+                    <div class="portal-page-heading">
+                        <h2 class="portal-section-title">My School Results</h2>
+                        <time class="portal-current-date" id="currentDate"></time>
+                    </div>
                     
-                    <div class="row">
+                    <div class="portal-sessions-grid">
                         <% if (sessions && sessions.length > 0) { %>
-                            <% sessions.forEach(s => { %>
-                                <div class="col-md-6 col-sm-6">
+                            <% sessions.forEach((s, index) => { %>
+                                <div class="portal-session-item">
                                     <div class="session-card">
-                                        <div class="folder-icon">
-                                            <i class="fa fa-folder-open"></i>
+                                        <div class="session-card-header">
+                                            <div class="session-card-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3H13.5a2 2 0 0 1 2 2v.217a2.11 2.11 0 0 1-.163-.077A1.5 1.5 0 0 0 14 5.5a1.5 1.5 0 0 0-1.337.835 2.11 2.11 0 0 1-.163.077V5a1 1 0 0 0-1-1H9.828a3 3 0 0 1-2.12-.879l-.83-.828A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 1l.04.87a1.5 1.5 0 0 0-.342 0zM0 7.5A1.5 1.5 0 0 1 1.5 6h13A1.5 1.5 0 0 1 16 7.5v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-5z"/></svg>
+                                            </div>
+                                            <h3 class="session-card-title"><%= s.session_name %></h3>
                                         </div>
-                                        <h4>SESSION: <%= s.session_name %></h4>
-                                        <p style="color: #888; margin-bottom: 20px;">Class: <strong><%= s.class_name %></strong></p>
+                                        <div class="session-card-info">
+                                            <span class="session-card-label">CLASS</span>
+                                            <span class="session-card-value"><%= s.class_name %></span>
+                                        </div>
                                         
-                                        <div class="row" style="padding: 0 10px;">
-                                            <div class="col-xs-12">
-                                                <% s.terms.forEach(term => { %>
-                                                    <a href="/view-result/<%= s.session_id %>/<%= term.term_id %>" class="btn-action">
-                                                        <i class="fa fa-eye"></i> View <%= term.term_name %>
+                                        <div class="session-card-actions">
+                                                <% s.terms.forEach((term, termIndex) => { %>
+                                                    <a href="/view-result/<%= s.session_id %>/<%= term.term_id %>" class="<%= termIndex === 0 ? 'btn-primary-lemon' : 'btn-action' %>">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg>
+                                                        View <%= term.term_name %>
                                                     </a>
                                                 <% }) %>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             <% }) %>
                         <% } else { %>
-                            <div class="col-md-12">
-                                <div class="alert alert-info" style="background: var(--light-purple); border-color: var(--primary-purple); color: var(--primary-purple); padding: 20px; border-radius: 10px; text-align: center;">
-                                    <i class="fa fa-info-circle fa-2x"></i> <br>
+                            <div class="portal-empty-state">
+                                <div class="empty-state-card">
+                                    <div class="empty-state-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3H13.5a2 2 0 0 1 2 2v.217a2.11 2.11 0 0 1-.163-.077A1.5 1.5 0 0 0 14 5.5a1.5 1.5 0 0 0-1.337.835 2.11 2.11 0 0 1-.163.077V5a1 1 0 0 0-1-1H9.828a3 3 0 0 1-2.12-.879l-.83-.828A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 1l.04.87a1.5 1.5 0 0 0-.342 0zM0 7.5A1.5 1.5 0 0 1 1.5 6h13A1.5 1.5 0 0 1 16 7.5v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5v-5z"/></svg>
+                                    </div>
                                     <h4>No results found yet!</h4>
-                                    <p>Check back later or contact your class teacher.</p>
+                                    <p>Your results will appear here once they're published. Check back later or contact your class teacher.</p>
                                 </div>
                             </div>
                         <% } %>
@@ -133,20 +137,21 @@
 		<!--=== End Content Part ===-->
 
 		<!--=== Footer ===-->
-		<div class="footer-v1">
-			<div class="container">
-				<div class="row">
-					<div class="col-md-4 md-margin-bottom-40">
-                            <img src="/img/tlmps_llogo_compressed_no_bg.png" class="footer-logo" alt="TLMPS">
-                        <p>The Leaders Memorial Private School.<br>We Nurture the Leaders of tomorrow.</p>
-                        <p>
-                            <i class="fa fa-map-marker"></i> 17, Shoye Odubana Street, Off Papa Major B/stop, Ijegun-Ikotun, Lagos.<br>
-                            <i class="fa fa-envelope"></i> contacttlmps@gmail.com
+		<div class="footer-v1 portal-footer">
+			<div class="container portal-footer-inner">
+				<div class="row portal-footer-grid">
+					<div class="col-md-4 md-margin-bottom-40 portal-footer-brand">
+                        <img src="/img/tlmps_llogo_compressed_no_bg.png" class="footer-logo" alt="TLMPS">
+                        <p class="footer-school-name">The Leaders Memorial Private School</p>
+                        <p class="footer-tagline">We Nurture the Leaders of Tomorrow.</p>
+                        <p class="footer-contact">
+                            <span><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M12.166 8.94c-.524 1.062-1.234 2.12-1.96 3.07A31.493 31.493 0 0 1 8 14.58a31.481 31.481 0 0 1-2.206-2.57c-.726-.95-1.436-2.008-1.96-3.07C3.304 7.867 3 6.862 3 6a5 5 0 0 1 10 0c0 .862-.305 1.867-.834 2.94zM8 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg> 17, Shoye Odubana Street, Off Papa Major B/stop, Ijegun-Ikotun, Lagos.</span>
+                            <span><a href="mailto:contacttlmps@gmail.com?subject=Enquiry%20-%20The%20Leaders%20Memorial%20Private%20School" style="color: #d1d5db; text-decoration: none;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M.05 3.555A2 2 0 0 1 2 2h12a2 2 0 0 1 1.95 1.555L8 8.414.05 3.555zM0 4.697v7.104l5.803-3.558L0 4.697zM6.761 8.83l-6.57 4.027A2 2 0 0 0 2 14h12a2 2 0 0 0 1.808-1.144l-6.57-4.027L8 9.586l-1.239-.757zM16 11.801V4.697l-5.803 3.546L16 11.801z"/></svg> contacttlmps@gmail.com</a></span>
                         </p>
 					</div>
                     
-                    <div class="col-md-4 md-margin-bottom-40 text-center">
-                        <h3 style="color: var(--primary-purple);">Connect With Us</h3>
+                    <div class="col-md-4 md-margin-bottom-40 text-center portal-footer-social">
+                        <h3>Connect With Us</h3>
                         <div class="social-icons">
                             <a href="#" title="Facebook">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/></svg>
@@ -162,10 +167,10 @@
                             </a>
                         </div>
                         <br>
-                        <a href="https://tlmps.netlify.app" target="_blank" class="btn btn-default" style="border-radius: 20px; border: 2px solid var(--primary-purple); color: var(--primary-purple);">Visit Our Website</a>
+                        <a href="https://tlmps.netlify.app" target="_blank" class="portal-footer-website">Visit Main Website</a>
                     </div>
 
-					<div class="col-md-4 text-right">
+					<div class="col-md-4 text-right portal-footer-copyright">
 						<p><script>document.write(new Date().getFullYear())</script> &copy; All Rights Reserved.<br>
                         Powered by <a href="#" target="_blank"><strong>TLMPS Tech</strong></a></p>
 					</div>
@@ -177,9 +182,28 @@
 
     <!-- Scripts -->
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
     <script>
-        document.getElementById('currentDate').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const menuToggle = document.querySelector('.student-menu-toggle');
+        const studentDrawer = document.getElementById('student-drawer');
+        const studentNavLinks = document.querySelector('.student-nav-links');
+
+        menuToggle.addEventListener('click', () => {
+            const isOpen = studentDrawer.classList.toggle('is-open');
+            studentNavLinks.classList.toggle('is-open', isOpen);
+            menuToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+
+        document.addEventListener('click', (event) => {
+            if (window.innerWidth < 992 && studentDrawer.classList.contains('is-open') && !studentDrawer.contains(event.target) && !menuToggle.contains(event.target)) {
+                studentDrawer.classList.remove('is-open');
+                studentNavLinks.classList.remove('is-open');
+                menuToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+            weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'
+        });
     </script>
 </body>
 </html>

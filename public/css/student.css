@@ -45,3 +45,100 @@ a { color: var(--primary-purple); }
     .session-card { min-height: 0; }
     .topbar { display: none; }
 }
+
+.student-nav-toggle { display: none; }
+
+@media (max-width: 768px) {
+    body { overflow-x: hidden; }
+    .header { padding: 10px 0; }
+    .header .container,
+    .container.content { padding-left: 12px; padding-right: 12px; }
+    .container.content { padding-top: 12px; padding-bottom: 24px; }
+    .breadcrumbs { margin-bottom: 14px; padding: 10px 0; }
+    .breadcrumbs h1 { font-size: 18px; }
+    .sidebar-nav-v1 {
+        position: relative;
+        margin-bottom: 16px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        overflow: visible;
+        background: transparent;
+        box-shadow: none;
+    }
+    .student-nav-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(106, 13, 173, .2);
+    }
+    .student-nav-toggle:active { transform: translateY(1px); }
+    .profile-section {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-rows: repeat(4, auto);
+        align-items: center;
+        gap: 2px 12px;
+        margin: 12px 0 0;
+        padding: 12px 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        text-align: left;
+    }
+    .profile-img {
+        grid-column: 2;
+        grid-row: 1 / span 4;
+        width: 76px;
+        height: 86px;
+        margin: 0;
+        border: 0;
+        border-radius: 10px;
+        box-shadow: none;
+    }
+    .profile-section h4,
+    .profile-section .label-success,
+    .profile-section p {
+        grid-column: 1;
+        margin: 0 !important;
+    }
+    .profile-section h4 { font-size: 17px; line-height: 1.25; }
+    .profile-section .label-success {
+        display: inline-block;
+        width: fit-content;
+        padding: 4px 7px;
+        font-size: 11px !important;
+        border-radius: 5px;
+    }
+    .profile-section p { font-size: 13px; color: var(--ink) !important; }
+    .student-nav-links {
+        display: none;
+        margin: 4px 0 0;
+        padding: 6px 0;
+        border-top: 1px solid var(--lilac-border);
+        border-bottom: 1px solid var(--lilac-border);
+    }
+    .student-nav-links.is-open { display: block; }
+    .student-nav-links .list-group-item { margin: 2px 0; }
+    .student-nav-links .list-group-item a {
+        padding: 11px 12px;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+    .headline h2 { font-size: 21px; margin-top: 8px; }
+    .session-card,
+    .profile-detail-card,
+    .audit-card { padding: 16px; border-radius: 8px; }
+    .profile-detail-card h3 { font-size: 18px; }
+    .detail-value { overflow-wrap: anywhere; }
+    .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .footer-v1 { padding: 24px 0; }
+}

@@ -21,6 +21,17 @@ const requireTeacher = (req, res, next) => {
   res.redirect("/teacher/login");
 };
 
+const requireActiveTerm = (req, res, next) => {
+  db.get(
+    `SELECT term_id FROM academic_terms WHERE term_id = ? AND session_id = ? AND term_status = 'Active'`,
+    [req.params.termId, req.params.sessionId],
+    (err, term) => {
+      if (err || !term) return res.status(403).send("Scores can be changed only while this term is active.");
+      next();
+    },
+  );
+};
+
 router.get("/login", (req, res) => {
   db.all(
     `SELECT * FROM subjects ORDER BY subject_name ASC`,
@@ -77,7 +88,7 @@ router.get("/dashboard", requireTeacher, (req, res) => {
     [subject_id],
     (subjectErr, subject) => {
       db.all(
-        `SELECT * FROM academic_sessions ORDER BY session_id DESC`,
+        `SELECT * FROM academic_sessions WHERE is_archived = 0 ORDER BY session_id ASC`,
         [],
         (sessionErr, sessions) => {
           db.all(
@@ -115,7 +126,7 @@ router.get("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
 		WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
 		ORDER BY e.admission_no ASC`;
   db.get(
-    `SELECT * FROM academic_sessions WHERE session_id = ?`,
+      `SELECT * FROM academic_sessions WHERE session_id = ? AND is_archived = 0`,
     [sessionId],
     (sessionErr, session) => {
       db.get(
@@ -148,6 +159,7 @@ router.get("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
                     term,
                     students: students || [],
                     query: req.query,
+                    readOnly: term.term_status !== "Active",
                   });
                 },
               );
@@ -159,7 +171,7 @@ router.get("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
   );
 });
 
-router.post("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
+router.post("/scores/:sessionId/:termId", requireTeacher, requireActiveTerm, (req, res) => {
   const { class_name, subject_id } = req.session.teacher;
   const { sessionId, termId } = req.params;
   const scores = Array.isArray(req.body.scores) ? req.body.scores : [];
@@ -243,6 +255,7 @@ router.post("/scores/:sessionId/:termId", requireTeacher, (req, res) => {
 router.post(
   "/scores/:sessionId/:termId/bulk-upload",
   requireTeacher,
+  requireActiveTerm,
   uploadExcel.single("excel_file"),
   (req, res) => {
     const { class_name, subject_id } = req.session.teacher;
@@ -364,7 +377,7 @@ router.get("/scores/:sessionId/:termId/export", requireTeacher, (req, res) => {
   const { class_name, subject_id } = req.session.teacher;
   const { sessionId, termId } = req.params;
   db.get(
-    `SELECT * FROM academic_sessions WHERE session_id = ?`,
+    `SELECT * FROM academic_sessions WHERE session_id = ? AND is_archived = 0`,
     [sessionId],
     (sessionError, session) => {
       db.get(

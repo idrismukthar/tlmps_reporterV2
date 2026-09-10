@@ -2,45 +2,601 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Super-Admin Dashboard - TLMPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super-Admin Dashboard — TLMPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .navbar { background: #0d6efd; color: white; padding: 15px 20px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .navbar a { color: white; text-decoration: none; font-weight: bold; background: rgba(255,255,255,0.2); padding: 6px 12px; border-radius: 4px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-        .card h3 { margin-top: 0; color: #333; }
-        .btn { display: inline-block; background: #198754; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; margin-top: 10px; font-weight: bold; }
-        .stat-box { font-size: 32px; font-weight: bold; color: #0d6efd; margin: 10px 0; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --purple: #3B1C56;
+            --purple-mid: #5C2D91;
+            --purple-light: #EBE3F7;
+            --lilac: #F4F0FA;
+            --lemon: #84CC16;
+            --lemon-dark: #65A30D;
+            --lemon-bg: #ECFDF5;
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --slate-400: #94A3B8;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(59,28,86,0.08), 0 1px 2px rgba(59,28,86,0.06);
+            --shadow-md: 0 4px 16px rgba(59,28,86,0.12), 0 2px 6px rgba(59,28,86,0.06);
+            --shadow-lg: 0 10px 36px rgba(59,28,86,0.15), 0 4px 12px rgba(59,28,86,0.08);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--lilac);
+            min-height: 100vh;
+            color: var(--slate-800);
+        }
+
+        /* ─── TOP NAVIGATION BAR ─── */
+        .topbar {
+            background: var(--purple);
+            padding: 12px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 12px rgba(59,28,86,0.35);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-logo {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+        .topbar-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+        }
+        .topbar-title {
+            color: var(--white);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .topbar-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: 12px;
+            font-weight: 400;
+            margin-top: 1px;
+        }
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.10);
+            color: var(--white);
+            border: 1px solid rgba(255,255,255,0.20);
+        }
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.20);
+            transform: translateY(-1px);
+        }
+        .btn-primary-lemon {
+            background: var(--lemon);
+            color: var(--slate-900);
+            border: none;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(132,204,22,0.25);
+        }
+        .btn-primary-lemon:hover {
+            background: var(--lemon-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(132,204,22,0.38);
+        }
+        .btn-purple {
+            background: var(--purple);
+            color: var(--white);
+            font-weight: 600;
+        }
+        .btn-purple:hover {
+            background: var(--purple-mid);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(59,28,86,0.25);
+        }
+        .btn-card-action {
+            width: 100%;
+            justify-content: center;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            margin-top: 14px;
+        }
+
+        /* ─── PAGE CONTENT CONTAINER ─── */
+        .page-content {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 28px 24px 48px;
+        }
+
+        /* ─── HERO CARD ─── */
+        .hero-card {
+            background: var(--purple);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -60px;
+            right: 140px;
+            width: 160px;
+            height: 160px;
+            background: rgba(132,204,22,0.07);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-info {
+            position: relative;
+            z-index: 2;
+        }
+        .hero-eyebrow {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 6px;
+        }
+        .hero-title {
+            color: var(--white);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+        .hero-desc {
+            color: rgba(255,255,255,0.8);
+            font-size: 13.5px;
+            font-weight: 400;
+            max-width: 580px;
+        }
+        .hero-badges-row {
+            display: flex;
+            gap: 12px;
+            position: relative;
+            z-index: 2;
+        }
+        .hero-stat-pill {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 12px 18px;
+            text-align: right;
+            min-width: 130px;
+        }
+        .hero-stat-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 4px;
+        }
+        .hero-stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--lemon);
+            line-height: 1;
+        }
+
+        /* ─── SECTION HEADER ─── */
+        .section-heading-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .card-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--purple);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+        }
+        .card-section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--purple-light);
+        }
+
+        /* ─── PORTAL MODULES GRID (2-COLUMN / 4-ITEM RESPONSIVE GRID) ─── */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        /* ─── MODULE CARD ─── */
+        .module-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 26px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(59,28,86,0.06);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.18s ease;
+            position: relative;
+        }
+        .module-card:hover {
+            transform: translateX(3px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--purple-light);
+        }
+        .module-card-top {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .module-icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: var(--lilac);
+            border: 1px solid var(--purple-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            flex-shrink: 0;
+            transition: all 0.18s ease;
+        }
+        .module-card:hover .module-icon-box {
+            background: var(--purple);
+            border-color: var(--purple);
+        }
+        .module-meta {
+            flex: 1;
+        }
+        .module-category {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--slate-400);
+            margin-bottom: 4px;
+        }
+        .module-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--purple);
+            letter-spacing: -0.2px;
+            line-height: 1.25;
+            margin-bottom: 4px;
+        }
+        .module-desc {
+            font-size: 13px;
+            color: var(--slate-600);
+            line-height: 1.45;
+        }
+
+        /* Info shelf row with signature purple border */
+        .module-stat-row {
+            background: var(--slate-100);
+            border-radius: 10px;
+            padding: 10px 14px 10px 18px;
+            border-left: 3px solid var(--purple);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            transition: all 0.15s ease;
+        }
+        .module-stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--slate-400);
+        }
+        .module-stat-val {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--slate-800);
+        }
+        .module-stat-val.highlight {
+            color: var(--lemon-dark);
+            font-weight: 800;
+        }
+
+        /* ─── QUICK DISCOVERY FOOTER CARD ─── */
+        .brand-footer-card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 20px 24px;
+            border: 1px solid rgba(59,28,86,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .brand-footer-text {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .brand-footer-icon {
+            font-size: 24px;
+        }
+        .brand-footer-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            color: var(--purple);
+            margin-bottom: 2px;
+        }
+        .brand-footer-desc {
+            font-size: 12px;
+            color: var(--slate-600);
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                padding: 12px 16px;
+            }
+            .page-content {
+                padding: 18px 14px 36px;
+            }
+            .hero-card {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 22px 20px;
+                gap: 16px;
+            }
+            .hero-badges-row {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .hero-stat-pill {
+                flex: 1;
+                text-align: left;
+            }
+            .modules-grid {
+                grid-template-columns: 1fr;
+            }
+            .brand-footer-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="navbar">
-            <h2>TLMPS Super-Admin Portal</h2>
-            <a href="/superadmin/logout">Logout</a>
+
+    <!-- ─── TOP NAVIGATION BAR ─── -->
+    <header class="topbar">
+        <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS Logo" class="topbar-logo"
+             onerror="this.src='/img/tlmps_llogo_compressed.jpg'">
+        <div class="topbar-divider"></div>
+        <div>
+            <div class="topbar-title">The Leaders Memorial Private School</div>
+            <div class="topbar-sub">Super-Admin Management Portal</div>
+        </div>
+        <div class="topbar-actions">
+            <!-- Direct CTA to central Roster -->
+            <a href="/superadmin/all-students" class="btn btn-primary-lemon" title="Browse Central Student Roster">
+                👥 All Students
+            </a>
+            <a href="/superadmin/logout" class="btn btn-ghost" title="End Session">
+                🚪 Logout
+            </a>
+        </div>
+    </header>
+
+    <main class="page-content">
+
+        <!-- ─── HERO WELCOME / SYSTEM STATUS CARD ─── -->
+        <section class="hero-card">
+            <div class="hero-info">
+                <div class="hero-eyebrow">Control Panel & Overview</div>
+                <h1 class="hero-title">Academic Administration Dashboard</h1>
+                <p class="hero-desc">
+                    Welcome to the administrative command center of The Leaders Memorial Private School. Manage sessions, enrollments, curriculum units, and student evaluation pipelines.
+                </p>
+            </div>
+            <div class="hero-badges-row">
+                <div class="hero-stat-pill">
+                    <div class="hero-stat-label">Active Sessions</div>
+                    <div class="hero-stat-value"><%= (sessions || []).length %></div>
+                </div>
+                <div class="hero-stat-pill">
+                    <div class="hero-stat-label">Registered Students</div>
+                    <div class="hero-stat-value"><%= typeof totalStudents !== 'undefined' ? totalStudents : '—' %></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── SECTION TITLE ─── -->
+        <div class="section-heading-card">
+            <h2 class="card-section-title">Administrative Modules & Control Workspaces</h2>
         </div>
 
-        <div class="grid">
-            <div class="card">
-                <h3>Academic Sessions</h3>
-                <p>Active Sessions: <strong><%= sessions ? sessions.length : 0 %></strong></p>
-                <a href="/superadmin/sessions" class="btn">Manage Sessions & Terms</a>
+        <!-- ─── 4 CORE ADMINISTRATIVE MODULES (2-COLUMN GRID) ─── -->
+        <div class="modules-grid">
+
+            <!-- 1. All Students Central Roster -->
+            <div class="module-card">
+                <div>
+                    <div class="module-card-top">
+                        <div class="module-icon-box">👥</div>
+                        <div class="module-meta">
+                            <div class="module-category">Student Records</div>
+                            <h3 class="module-title">Central Student Roster</h3>
+                            <p class="module-desc">
+                                Browse directory of all enrolled students from JSS1 to SSS3, view bio-data profiles, and update registrations.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="module-stat-row">
+                        <span class="module-stat-label">Total Enrolled</span>
+                        <span class="module-stat-val highlight"><%= typeof totalStudents !== 'undefined' ? totalStudents + ' Students' : 'Active Registry' %></span>
+                    </div>
+                </div>
+
+                <a href="/superadmin/all-students" class="btn btn-primary-lemon btn-card-action">
+                    Open Student Roster →
+                </a>
             </div>
 
-            <div class="card">
-                <h3>Subject & SSS Units</h3>
-                <p>Configure Course Weights</p>
-                <a href="/superadmin/subjects" class="btn" style="background: #0d6efd;">Manage Subjects</a>
+            <!-- 2. Academic Sessions & Workspaces -->
+            <div class="module-card">
+                <div>
+                    <div class="module-card-top">
+                        <div class="module-icon-box">📅</div>
+                        <div class="module-meta">
+                            <div class="module-category">Calendar & Terms</div>
+                            <h3 class="module-title">Academic Sessions</h3>
+                            <p class="module-desc">
+                                Initialize calendar sessions, manage First, Second, and Third Term dates, and conclude or reopen terms.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="module-stat-row">
+                        <span class="module-stat-label">Configured Sessions</span>
+                        <span class="module-stat-val"><%= (sessions || []).length %> Sessions</span>
+                    </div>
+                </div>
+
+                <a href="/superadmin/sessions" class="btn btn-purple btn-card-action">
+                    Manage Sessions & Terms →
+                </a>
             </div>
 
-            <div class="card">
-                <h3>Score Entry</h3>
-                <p>Record and update student scores</p>
-                <a href="/teacher/login" class="btn">Record Scores</a>
+            <!-- 3. Subjects & Course Units -->
+            <div class="module-card">
+                <div>
+                    <div class="module-card-top">
+                        <div class="module-icon-box">📚</div>
+                        <div class="module-meta">
+                            <div class="module-category">Curriculum Structure</div>
+                            <h3 class="module-title">Subjects & SSS Units</h3>
+                            <p class="module-desc">
+                                Configure Junior and Senior Secondary subjects, specify unit weights, and balance academic course loads.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="module-stat-row">
+                        <span class="module-stat-label">Subjects Catalog</span>
+                        <span class="module-stat-val"><%= typeof totalSubjects !== 'undefined' ? totalSubjects + ' Subjects' : 'Curriculum Units' %></span>
+                    </div>
+                </div>
+
+                <a href="/superadmin/subjects" class="btn btn-purple btn-card-action">
+                    Manage Subjects & Weights →
+                </a>
             </div>
+
+            <!-- 4. Score Entry & Evaluations -->
+            <div class="module-card">
+                <div>
+                    <div class="module-card-top">
+                        <div class="module-icon-box">📝</div>
+                        <div class="module-meta">
+                            <div class="module-category">Examination & Grades</div>
+                            <h3 class="module-title">Score Entry Portal</h3>
+                            <p class="module-desc">
+                                Record, compute, and review student test scores, term evaluations, and examination grading sheets.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="module-stat-row">
+                        <span class="module-stat-label">Evaluator Access</span>
+                        <span class="module-stat-val">Teacher & Class Master</span>
+                    </div>
+                </div>
+
+                <a href="/teacher/login" class="btn btn-purple btn-card-action">
+                    Access Score Entry →
+                </a>
+            </div>
+
         </div>
-    </div>
+
+        <!-- ─── BRAND FOOTER INFORMATION ─── -->
+        <div class="brand-footer-card">
+            <div class="brand-footer-text">
+                <span class="brand-footer-icon">🏫</span>
+                <div>
+                    <div class="brand-footer-title">The Leaders Memorial Private School &bull; Administrative Portal</div>
+                    <div class="brand-footer-desc">Structured, trustworthy, and authoritative governance system. All actions logged securely.</div>
+                </div>
+            </div>
+            <a href="/superadmin/all-students" class="btn btn-ghost" style="color: var(--purple); background: var(--lilac); border-color: var(--purple-light);">
+                Quick Student Lookup
+            </a>
+        </div>
+
+    </main>
+
 </body>
-</html>
+</html>

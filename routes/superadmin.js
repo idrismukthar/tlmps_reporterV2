@@ -5,12 +5,83 @@ const uploadPassport = require("../middleware/upload");
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
+const bcrypt = require("bcryptjs");
 const nigeriaStates = require("../static/states.json");
 
 // Auth Protection
 const requireAuth = (req, res, next) => {
   if (req.session && req.session.isSuperAdmin) return next();
   res.redirect("/superadmin/login");
+};
+
+const formatDOBInWords = (dobStr) => {
+  if (!dobStr) return "N/A";
+  const parts = String(dobStr).split("/");
+  if (parts.length !== 3) return dobStr;
+
+  const day = Number(parts[0]);
+  const month = Number(parts[1]) - 1;
+  const year = Number(parts[2]);
+  const birthDate = new Date(year, month, day);
+  if (
+    Number.isNaN(birthDate.getTime()) ||
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month ||
+    birthDate.getDate() !== day
+  ) {
+    return dobStr;
+  }
+
+  const daysOfWeek = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const monthsOfYear = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const suffix =
+    day % 100 >= 11 && day % 100 <= 13
+      ? "th"
+      : day % 10 === 1
+        ? "st"
+        : day % 10 === 2
+          ? "nd"
+          : day % 10 === 3
+            ? "rd"
+            : "th";
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  if (
+    today.getMonth() < month ||
+    (today.getMonth() === month && today.getDate() < day)
+  ) {
+    age -= 1;
+  }
+
+  return `${daysOfWeek[birthDate.getDay()]}, ${day}${suffix} ${
+    monthsOfYear[month]
+  } ${year} (${age} ${age === 1 ? "year" : "years"} old)`;
+};
+
+const hashOptionalIdentifier = (value, callback) => {
+  if (!value) return callback(null, null);
+  bcrypt.hash(value, 12, callback);
 };
 
 router.get("/login", (req, res) =>
@@ -86,12 +157,18 @@ router.post("/register-student", (req, res) => {
       club,
       society,
       subject_ids,
+      nin,
+      lassra,
     } = req.body;
 
     const passport_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!session_id)
       return res.status(400).send("Academic session is required");
+    if (nin && !/^\d{11}$/.test(nin))
+      return res.status(400).send("NIN must contain exactly 11 digits");
+    if (lassra && !/^LA-\d{10}$/.test(lassra))
+      return res.status(400).send("LASSRA must use the format LA- followed by 10 digits");
     const selectedState = nigeriaStates.find(
       (state) => state.name === state_of_origin,
     );
@@ -99,27 +176,33 @@ router.post("/register-student", (req, res) => {
       return res.status(400).send("Please select a valid state and LGA");
     }
 
-    db.run(
-      `INSERT INTO students (admission_no, surname, middle_name, last_name, class_name, department, gender, phone_number, email, address, state_of_origin, lga, dob, club, society, passport_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        admission_no,
-        surname,
-        middle_name,
-        last_name,
-        class_name,
-        department || null,
-        gender,
-        phone_number,
-        email,
-        address,
-        state_of_origin,
-        lga,
-        dob,
-        club,
-        society,
-        passport_url,
-      ],
-      function (dbErr) {
+    hashOptionalIdentifier(nin, (ninErr, ninHash) => {
+      if (ninErr) return res.status(500).send("NIN protection error");
+      hashOptionalIdentifier(lassra, (lassraErr, lassraHash) => {
+        if (lassraErr) return res.status(500).send("LASSRA protection error");
+        db.run(
+          `INSERT INTO students (admission_no, surname, middle_name, last_name, class_name, department, gender, phone_number, email, address, state_of_origin, lga, dob, club, society, passport_url, nin_hash, lassra_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            admission_no,
+            surname,
+            middle_name,
+            last_name,
+            class_name,
+            department || null,
+            gender,
+            phone_number,
+            email,
+            address,
+            state_of_origin,
+            lga,
+            dob,
+            club,
+            society,
+            passport_url,
+            ninHash,
+            lassraHash,
+          ],
+          function (dbErr) {
         if (dbErr)
           return res.status(500).send("Registration Error: " + dbErr.message);
 
@@ -146,8 +229,10 @@ router.post("/register-student", (req, res) => {
         }
 
         res.redirect(`/superadmin/sessions/${session_id}`);
-      },
-    );
+          },
+        );
+      });
+    });
   });
 });
 
@@ -165,22 +250,70 @@ router.get("/all-students", (req, res) => {
 // Single Student Profile Page
 router.get("/student/:admission_no", (req, res) => {
   const adm = req.params.admission_no;
+  const requestedSessionId = req.query.session_id || null;
+
   db.get(
     `SELECT * FROM students WHERE admission_no = ?`,
     [adm],
     (err, student) => {
       if (!student) return res.status(404).send("Student Not Found");
 
-      db.all(
-        `SELECT subjects.* FROM subjects JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id WHERE student_subject_selections.admission_no = ? ORDER BY subject_name ASC`,
-        [adm],
-        (err, enrolledSubjects) => {
-          res.render("superadmin/student-profile", {
-            student,
-            enrolledSubjects: enrolledSubjects || [],
-          });
-        },
-      );
+      const getEnrollmentSession = (callback) => {
+        if (requestedSessionId) {
+          return db.get(
+            `SELECT a.*, e.class_name AS enrolled_class, e.department AS enrolled_department
+             FROM academic_sessions a
+             LEFT JOIN academic_session_enrollments e
+               ON e.session_id = a.session_id AND e.admission_no = ?
+             WHERE a.session_id = ? AND a.is_archived = 0`,
+            [adm, requestedSessionId],
+            callback,
+          );
+        }
+        db.get(
+          `SELECT a.*, e.class_name AS enrolled_class, e.department AS enrolled_department
+           FROM academic_sessions a
+           JOIN academic_session_enrollments e ON e.session_id = a.session_id
+           WHERE e.admission_no = ? AND a.is_archived = 0 AND e.enrollment_status = 'Enrolled'
+           ORDER BY a.session_id DESC LIMIT 1`,
+          [adm],
+          (enrErr, enrolledSession) => {
+            if (enrolledSession) return callback(null, enrolledSession);
+            db.get(
+              `SELECT * FROM academic_sessions WHERE is_archived = 0 ORDER BY session_id DESC LIMIT 1`,
+              callback,
+            );
+          },
+        );
+      };
+
+      getEnrollmentSession((sessionErr, session) => {
+        const targetSessionId = session ? session.session_id : null;
+
+        db.all(
+          `SELECT subjects.* FROM subjects
+           JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id
+           WHERE student_subject_selections.admission_no = ?
+             AND (student_subject_selections.session_id = ? OR (? IS NULL AND student_subject_selections.session_id IS NULL))
+           ORDER BY subject_name ASC`,
+          [adm, targetSessionId, targetSessionId],
+          (err, enrolledSubjects) => {
+            const currentClass = (session && session.enrolled_class) || student.class_name;
+            const currentDept = (session && session.enrolled_department) || student.department;
+
+            res.render("superadmin/student-profile", {
+              student: {
+                ...student,
+                class_name: currentClass,
+                department: currentDept,
+              },
+              session,
+              dobInWords: formatDOBInWords(student.dob),
+              enrolledSubjects: enrolledSubjects || [],
+            });
+          },
+        );
+      });
     },
   );
 });
@@ -262,11 +395,17 @@ router.post("/student/:admission_no/edit", (req, res) => {
       society,
       subject_ids,
       session_id,
+      nin,
+      lassra,
     } = req.body;
     const newAdmissionNo = String(admission_no || "").trim();
     if (!/^\d{5}$/.test(newAdmissionNo)) {
       return res.status(400).send("Admission number must be exactly 5 digits");
     }
+    if (nin && !/^\d{11}$/.test(nin))
+      return res.status(400).send("NIN must contain exactly 11 digits");
+    if (lassra && !/^LA-\d{10}$/.test(lassra))
+      return res.status(400).send("LASSRA must use the format LA- followed by 10 digits");
     const selectedState = nigeriaStates.find(
       (state) => state.name === state_of_origin,
     );
@@ -275,7 +414,7 @@ router.post("/student/:admission_no/edit", (req, res) => {
     }
 
     db.get(
-      `SELECT passport_url FROM students WHERE admission_no = ?`,
+      `SELECT passport_url, nin_hash, lassra_hash FROM students WHERE admission_no = ?`,
       [oldAdmissionNo],
       (findErr, student) => {
         if (!student) return res.status(404).send("Student Not Found");
@@ -290,9 +429,14 @@ router.post("/student/:admission_no/edit", (req, res) => {
               return res
                 .status(400)
                 .send("That admission number is already in use");
-            db.serialize(() => {
+            hashOptionalIdentifier(nin, (ninErr, ninHash) => {
+              if (ninErr) return res.status(500).send("NIN protection error");
+              hashOptionalIdentifier(lassra, (lassraErr, lassraHash) => {
+                if (lassraErr)
+                  return res.status(500).send("LASSRA protection error");
+                db.serialize(() => {
               db.run(
-                `UPDATE students SET admission_no = ?, surname = ?, middle_name = ?, last_name = ?, class_name = ?, department = ?, gender = ?, phone_number = ?, email = ?, address = ?, state_of_origin = ?, lga = ?, dob = ?, club = ?, society = ?, passport_url = ? WHERE admission_no = ?`,
+                `UPDATE students SET admission_no = ?, surname = ?, middle_name = ?, last_name = ?, class_name = ?, department = ?, gender = ?, phone_number = ?, email = ?, address = ?, state_of_origin = ?, lga = ?, dob = ?, club = ?, society = ?, passport_url = ?, nin_hash = ?, lassra_hash = ? WHERE admission_no = ?`,
                 [
                   newAdmissionNo,
                   surname,
@@ -310,6 +454,8 @@ router.post("/student/:admission_no/edit", (req, res) => {
                   club,
                   society,
                   passportUrl,
+                  ninHash || student.nin_hash || null,
+                  lassraHash || student.lassra_hash || null,
                   oldAdmissionNo,
                 ],
                 (updateErr) => {
@@ -343,6 +489,8 @@ router.post("/student/:admission_no/edit", (req, res) => {
                   res.redirect(redirectPath);
                 },
               );
+                });
+              });
             });
           },
         );
@@ -354,6 +502,7 @@ router.post("/student/:admission_no/edit", (req, res) => {
 // PDF Registration Slip Download Endpoint
 router.get("/download-pdf/:admission_no", (req, res) => {
   const adm = req.params.admission_no;
+  const requestedSessionId = req.query.session_id || null;
 
   db.get(
     `SELECT * FROM students WHERE admission_no = ?`,
@@ -361,13 +510,49 @@ router.get("/download-pdf/:admission_no", (req, res) => {
     (err, student) => {
       if (!student) return res.status(404).send("Student Not Found");
 
-      db.all(
-        `SELECT subjects.* FROM subjects JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id WHERE student_subject_selections.admission_no = ? ORDER BY subject_name ASC`,
-        [adm],
-        (err, enrolledSubjects) => {
-          const doc = new PDFDocument({ margin: 40, size: "A4" });
+      const getEnrollmentSession = (callback) => {
+        if (requestedSessionId) {
+          return db.get(
+            `SELECT a.*, e.class_name AS enrolled_class, e.department AS enrolled_department
+             FROM academic_sessions a
+             LEFT JOIN academic_session_enrollments e
+               ON e.session_id = a.session_id AND e.admission_no = ?
+             WHERE a.session_id = ? AND a.is_archived = 0`,
+            [adm, requestedSessionId],
+            callback,
+          );
+        }
+        db.get(
+          `SELECT a.*, e.class_name AS enrolled_class, e.department AS enrolled_department
+           FROM academic_sessions a
+           JOIN academic_session_enrollments e ON e.session_id = a.session_id
+           WHERE e.admission_no = ? AND a.is_archived = 0 AND e.enrollment_status = 'Enrolled'
+           ORDER BY a.session_id DESC LIMIT 1`,
+          [adm],
+          (enrErr, enrolledSession) => {
+            if (enrolledSession) return callback(null, enrolledSession);
+            db.get(
+              `SELECT * FROM academic_sessions WHERE is_archived = 0 ORDER BY session_id DESC LIMIT 1`,
+              callback,
+            );
+          },
+        );
+      };
 
-          const filename = `${student.admission_no}_${student.surname}_${student.last_name}_registration_form.pdf`;
+      getEnrollmentSession((sessionErr, session) => {
+        const targetSessionId = session ? session.session_id : null;
+
+        db.all(
+          `SELECT subjects.* FROM subjects
+           JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id
+           WHERE student_subject_selections.admission_no = ?
+             AND (student_subject_selections.session_id = ? OR (? IS NULL AND student_subject_selections.session_id IS NULL))
+           ORDER BY subject_name ASC`,
+          [adm, targetSessionId, targetSessionId],
+          (err, enrolledSubjects) => {
+            const doc = new PDFDocument({ margin: 40, size: "A4" });
+
+            const filename = `${student.admission_no}_${student.surname}_${student.last_name}_registration_form.pdf`;
 
           res.setHeader("Content-Type", "application/pdf");
           res.setHeader(
@@ -606,6 +791,7 @@ router.get("/download-pdf/:admission_no", (req, res) => {
     },
   );
 });
+});
 // Subject Routes
 router.get("/subjects", (req, res) => {
   db.all(
@@ -647,8 +833,15 @@ router.get("/delete-subject/:id", (req, res) => {
 
 // Sessions
 router.get("/sessions", (req, res) => {
-  db.all(`SELECT * FROM academic_sessions`, [], (err, sessions) => {
-    res.render("superadmin/sessions", { sessions: sessions || [] });
+  const archived = req.query.archived === "1";
+  db.all(
+    `SELECT * FROM academic_sessions WHERE is_archived = ? ORDER BY session_id ASC`,
+    [archived ? 1 : 0],
+    (err, sessions) => {
+      res.render("superadmin/sessions", {
+        sessions: sessions || [],
+        archived,
+      });
   });
 });
 
@@ -726,14 +919,21 @@ router.get("/sessions/:session_id", (req, res) => {
         [sessionId],
         (termErr, term) => {
           db.all(
-            `SELECT e.*, s.surname, s.middle_name, s.last_name, s.gender, s.department FROM academic_session_enrollments e JOIN students s ON s.admission_no = e.admission_no WHERE e.session_id = ? AND e.enrollment_status = 'Enrolled' ORDER BY e.class_name ASC, e.admission_no ASC`,
+            `SELECT * FROM academic_terms WHERE session_id = ? ORDER BY term_number ASC`,
             [sessionId],
-            (rosterErr, students) =>
-              res.render("superadmin/session-detail", {
-                session,
-                term,
-                students: students || [],
-              }),
+            (termsErr, terms) => {
+              db.all(
+                `SELECT e.*, s.surname, s.middle_name, s.last_name, s.gender, s.department FROM academic_session_enrollments e JOIN students s ON s.admission_no = e.admission_no WHERE e.session_id = ? AND e.enrollment_status = 'Enrolled' ORDER BY e.class_name ASC, e.admission_no ASC`,
+                [sessionId],
+                (rosterErr, students) =>
+                  res.render("superadmin/session-detail", {
+                    session,
+                    term,
+                    terms: terms || [],
+                    students: students || [],
+                  }),
+              );
+            },
           );
         },
       );

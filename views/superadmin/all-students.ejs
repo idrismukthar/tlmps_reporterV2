@@ -2,76 +2,725 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>All Students Roster - TLMPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Registered Students Roster — TLMPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
-        .tab-btn { padding: 8px 16px; border: none; background: #e9ecef; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .tab-btn.active { background: #0d6efd; color: white; }
-        .student-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .student-table th, .student-table td { border: 1px solid #e0e0e0; padding: 10px; text-align: left; font-size: 14px; }
-        .student-table th { background: #f1f3f5; }
-        .btn-view { background: #0d6efd; color: white; padding: 4px 10px; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: bold; }
-        a.back-btn { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; font-weight: bold; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --purple: #3B1C56;
+            --purple-mid: #5C2D91;
+            --purple-light: #EBE3F7;
+            --lilac: #F4F0FA;
+            --lemon: #84CC16;
+            --lemon-dark: #65A30D;
+            --lemon-bg: #ECFDF5;
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --slate-400: #94A3B8;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(59,28,86,0.08), 0 1px 2px rgba(59,28,86,0.06);
+            --shadow-md: 0 4px 16px rgba(59,28,86,0.12), 0 2px 6px rgba(59,28,86,0.06);
+            --shadow-lg: 0 10px 36px rgba(59,28,86,0.15), 0 4px 12px rgba(59,28,86,0.08);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--lilac);
+            min-height: 100vh;
+            color: var(--slate-800);
+        }
+
+        /* ─── TOPBAR ─── */
+        .topbar {
+            background: var(--purple);
+            padding: 12px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 12px rgba(59,28,86,0.35);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-logo {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+        .topbar-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+        }
+        .topbar-title {
+            color: var(--white);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .topbar-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: 12px;
+            font-weight: 400;
+            margin-top: 1px;
+        }
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.10);
+            color: var(--white);
+            border: 1px solid rgba(255,255,255,0.20);
+        }
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.20);
+            transform: translateY(-1px);
+        }
+        .btn-primary {
+            background: var(--lemon);
+            color: var(--slate-900);
+            border: none;
+            box-shadow: 0 2px 8px rgba(132,204,22,0.25);
+        }
+        .btn-primary:hover {
+            background: var(--lemon-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(132,204,22,0.38);
+        }
+        .btn-action-profile {
+            background: var(--purple);
+            color: var(--white);
+            padding: 6px 13px;
+            font-size: 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.18s ease;
+        }
+        .btn-action-profile:hover {
+            background: var(--purple-mid);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(59,28,86,0.22);
+        }
+        .btn-action-edit {
+            background: var(--white);
+            color: var(--purple);
+            border: 1px solid var(--purple-light);
+            padding: 5px 12px;
+            font-size: 12px;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.18s ease;
+        }
+        .btn-action-edit:hover {
+            background: var(--lilac);
+            border-color: var(--purple-mid);
+            transform: translateY(-1px);
+        }
+
+        /* ─── PAGE CONTAINER ─── */
+        .page-content {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 28px 24px 48px;
+        }
+
+        /* ─── HERO BANNER ─── */
+        .hero-card {
+            background: var(--purple);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -60px;
+            right: 140px;
+            width: 160px;
+            height: 160px;
+            background: rgba(132,204,22,0.07);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-info {
+            position: relative;
+            z-index: 2;
+        }
+        .hero-eyebrow {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 6px;
+        }
+        .hero-title {
+            color: var(--white);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+        .hero-desc {
+            color: rgba(255,255,255,0.8);
+            font-size: 13.5px;
+            font-weight: 400;
+            max-width: 580px;
+        }
+        .hero-stat-pill {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 16px;
+            padding: 14px 22px;
+            text-align: right;
+            position: relative;
+            z-index: 2;
+            min-width: 160px;
+        }
+        .hero-stat-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 4px;
+        }
+        .hero-stat-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--lemon);
+            line-height: 1;
+        }
+
+        /* ─── CARD ─── */
+        .card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(59,28,86,0.06);
+        }
+
+        /* ─── CONTROLS HEADER (SEARCH & TABS) ─── */
+        .roster-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+            max-width: 380px;
+        }
+        .search-box input {
+            width: 100%;
+            background: var(--lilac);
+            border: 1.5px solid var(--slate-200);
+            border-radius: 10px;
+            padding: 10px 14px 10px 38px;
+            font-family: inherit;
+            font-size: 13.5px;
+            color: var(--slate-800);
+            outline: none;
+            transition: all 0.18s ease;
+        }
+        .search-box input:focus {
+            border-color: var(--purple-mid);
+            background: var(--white);
+            box-shadow: 0 0 0 3px rgba(92,45,145,0.12);
+        }
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--slate-400);
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        /* ─── TABS ─── */
+        .tabs-container {
+            display: flex;
+            gap: 6px;
+            background: var(--lilac);
+            padding: 5px;
+            border-radius: 12px;
+            border: 1px solid var(--purple-light);
+            overflow-x: auto;
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--slate-600);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 8px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn:hover:not(.active) {
+            color: var(--purple);
+            background: rgba(255,255,255,0.6);
+        }
+        .tab-btn.active {
+            background: var(--purple);
+            color: var(--white);
+            box-shadow: 0 2px 6px rgba(59,28,86,0.22);
+        }
+        .tab-count {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.2);
+            color: inherit;
+        }
+        .tab-btn:not(.active) .tab-count {
+            background: var(--purple-light);
+            color: var(--purple);
+        }
+
+        /* ─── SECTION HEADER BAR ─── */
+        .section-header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--slate-200);
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--purple);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .counter-badge {
+            background: var(--lemon-bg);
+            border: 1px solid var(--lemon);
+            color: #15803D;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 12px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .counter-badge .bold-num {
+            font-weight: 800;
+            color: var(--lemon-dark);
+        }
+
+        /* ─── DATA TABLE ─── */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--slate-200);
+        }
+        .roster-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13.5px;
+        }
+        .roster-table thead th {
+            background: var(--slate-100);
+            color: var(--slate-600);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            padding: 12px 16px;
+            border-bottom: 1.5px solid var(--purple-light);
+            white-space: nowrap;
+        }
+        .roster-table tbody tr {
+            background: var(--white);
+            transition: all 0.15s ease;
+            border-bottom: 1px solid var(--slate-200);
+        }
+        .roster-table tbody tr:last-child {
+            border-bottom: none;
+        }
+        .roster-table tbody tr:hover {
+            background: #FAF8FD;
+            transform: translateX(2px);
+        }
+        .roster-table td {
+            padding: 13px 16px;
+            color: var(--slate-800);
+            vertical-align: middle;
+        }
+
+        /* Signature Purple Left-Border on admission cell */
+        .td-adm {
+            border-left: 3px solid var(--purple);
+            font-weight: 700;
+            color: var(--purple);
+            font-size: 13.5px;
+            letter-spacing: 0.3px;
+        }
+        .student-name-text {
+            font-weight: 600;
+            color: var(--slate-800);
+        }
+
+        /* ─── BADGES ─── */
+        .badge-pill {
+            display: inline-block;
+            border-radius: 20px;
+            padding: 3px 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .badge-gender {
+            background: var(--slate-100);
+            color: var(--slate-600);
+            border: 1px solid var(--slate-200);
+        }
+        .badge-dept {
+            background: var(--lemon-bg);
+            color: var(--lemon-dark);
+            border: 1px solid #BBF7D0;
+            font-weight: 700;
+        }
+        .badge-dept.na {
+            background: var(--slate-100);
+            color: var(--slate-400);
+            border: 1px solid var(--slate-200);
+            font-weight: 500;
+        }
+
+        .action-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-state {
+            padding: 42px 24px;
+            text-align: center;
+            color: var(--slate-400);
+        }
+        .empty-state-icon {
+            font-size: 36px;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+        .empty-state-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--slate-600);
+            margin-bottom: 4px;
+        }
+        .empty-state-text {
+            font-size: 13px;
+            color: var(--slate-400);
+        }
+
+        /* ─── FOOTER HELPER ─── */
+        .footer-note {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 14px;
+            font-size: 12px;
+            color: var(--slate-400);
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                padding: 12px 16px;
+            }
+            .page-content {
+                padding: 18px 14px 36px;
+            }
+            .hero-card {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 22px 20px;
+                gap: 16px;
+            }
+            .hero-stat-pill {
+                width: 100%;
+                text-align: left;
+            }
+            .card {
+                padding: 18px 16px;
+            }
+            .roster-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .search-box {
+                max-width: 100%;
+            }
+            .tabs-container {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/superadmin/dashboard" class="back-btn">&larr; Back to Dashboard</a>
 
+    <!-- ─── TOPBAR ─── -->
+    <header class="topbar">
+        <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS Logo" class="topbar-logo"
+             onerror="this.src='/img/tlmps_llogo_compressed.jpg'">
+        <div class="topbar-divider"></div>
+        <div>
+            <div class="topbar-title">The Leaders Memorial Private School</div>
+            <div class="topbar-sub">Central Student Roster Directory</div>
+        </div>
+        <div class="topbar-actions">
+            <a href="/superadmin/sessions" class="btn btn-primary" title="Access Academic Sessions">
+                📅 Sessions Workspace
+            </a>
+            <a href="/superadmin/dashboard" class="btn btn-ghost">
+                ← Dashboard
+            </a>
+        </div>
+    </header>
+
+    <main class="page-content">
+
+        <!-- ─── HERO PROFILE / OVERVIEW CARD ─── -->
+        <section class="hero-card">
+            <div class="hero-info">
+                <div class="hero-eyebrow">Academic Administration</div>
+                <h1 class="hero-title">All Registered Students</h1>
+                <p class="hero-desc">
+                    Official registry of all students across Junior and Senior Secondary classes. Search or filter by class to view full academic profiles and update records.
+                </p>
+            </div>
+            <div class="hero-stat-pill">
+                <div class="hero-stat-label">Total Registered</div>
+                <div class="hero-stat-value"><%= (students || []).length %></div>
+            </div>
+        </section>
+
+        <!-- ─── MAIN ROSTER CARD ─── -->
         <div class="card">
-            <h2>All Registered Students</h2>
-            
-            <div class="tabs">
-                <% ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'].forEach((cls, index) => { %>
-                    <button class="tab-btn <%= index === 0 ? 'active' : '' %>" onclick="showClass('<%= cls %>', this)"><%= cls %></button>
-                <% }); %>
+            <div class="roster-controls">
+                <!-- Live Search -->
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="studentSearchInput" placeholder="Filter by name, admission no, or dept..." onkeyup="filterRoster()">
+                </div>
+
+                <!-- Class Tabs -->
+                <div class="tabs-container" role="tablist">
+                    <% const classList = ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3']; %>
+                    <% classList.forEach((cls, index) => { 
+                        const clsCount = (students || []).filter(s => s.class_name === cls).length;
+                    %>
+                        <button class="tab-btn <%= index === 0 ? 'active' : '' %>" 
+                                onclick="showClass('<%= cls %>', this)" 
+                                id="tab-<%= cls %>"
+                                role="tab"
+                                aria-selected="<%= index === 0 ? 'true' : 'false' %>">
+                            <%= cls %>
+                            <span class="tab-count"><%= clsCount %></span>
+                        </button>
+                    <% }); %>
+                </div>
             </div>
 
-            <% ['JSS1', 'JSS2', 'JSS3', 'SSS1', 'SSS2', 'SSS3'].forEach((cls, index) => { %>
+            <!-- Class Tables -->
+            <% classList.forEach((cls, index) => { 
+                const clsStudents = (students || []).filter(s => s.class_name === cls);
+            %>
                 <div id="class_<%= cls %>" class="class-section" style="display: <%= index === 0 ? 'block' : 'none' %>;">
-                    <table class="student-table">
-                        <thead>
-                            <tr>
-                                <th>Admission No</th>
-                                <th>Name</th>
-                                <th>Gender</th>
-                                <th>Department</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% const clsStudents = students.filter(s => s.class_name === cls); %>
-                            <% if (clsStudents.length === 0) { %>
-                                <tr><td colspan="5" style="text-align: center; color: #888;">No students registered in <%= cls %>.</td></tr>
-                            <% } %>
-                            <% clsStudents.forEach(s => { %>
+                    <div class="section-header-bar">
+                        <div class="section-title">
+                            <%= cls %> Roster
+                        </div>
+                        <div class="counter-badge">
+                            Enrolled Students: <span class="bold-num"><%= clsStudents.length %></span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="roster-table">
+                            <thead>
                                 <tr>
-                                    <td><strong><%= s.admission_no %></strong></td>
-                                    <td><%= s.surname %> <%= s.middle_name || '' %> <%= s.last_name %></td>
-                                    <td><%= s.gender %></td>
-                                    <td><%= s.department || 'N/A' %></td>
-                                    <td>
-                                        <a href="/superadmin/student/<%= s.admission_no %>" class="btn-view">Profile</a>
-                                        <a href="/superadmin/student/<%= s.admission_no %>/edit" class="btn-view">Edit</a>
-                                    </td>
+                                    <th style="width: 18%;">Admission No</th>
+                                    <th style="width: 38%;">Student Full Name</th>
+                                    <th style="width: 14%;">Gender</th>
+                                    <th style="width: 16%;">Department</th>
+                                    <th style="width: 14%; text-align: right;">Actions</th>
                                 </tr>
-                            <% }); %>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                <% if (clsStudents.length === 0) { %>
+                                    <tr>
+                                        <td colspan="5">
+                                            <div class="empty-state">
+                                                <div class="empty-state-icon">📋</div>
+                                                <div class="empty-state-title">No Students Registered in <%= cls %></div>
+                                                <div class="empty-state-text">Students assigned to <%= cls %> will appear here automatically.</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <% } else { %>
+                                    <% clsStudents.forEach(s => { 
+                                        const fullName = `${s.surname || ''} ${s.middle_name || ''} ${s.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                                    %>
+                                        <tr class="student-row" data-search="<%= (s.admission_no + ' ' + fullName + ' ' + (s.department || '')).toLowerCase() %>">
+                                            <td class="td-adm"><%= s.admission_no %></td>
+                                            <td>
+                                                <div class="student-name-text"><%= fullName %></div>
+                                            </td>
+                                            <td>
+                                                <span class="badge-pill badge-gender"><%= s.gender || '—' %></span>
+                                            </td>
+                                            <td>
+                                                <% if (s.department && s.department !== 'N/A') { %>
+                                                    <span class="badge-pill badge-dept"><%= s.department %></span>
+                                                <% } else { %>
+                                                    <span class="badge-pill badge-dept na">N/A</span>
+                                                <% } %>
+                                            </td>
+                                            <td style="text-align: right;">
+                                                <div class="action-cell" style="justify-content: flex-end;">
+                                                    <a href="/superadmin/student/<%= s.admission_no %>" class="btn-action-profile" title="View Full Profile">
+                                                        👤 Profile
+                                                    </a>
+                                                    <a href="/superadmin/student/<%= s.admission_no %>/edit" class="btn-action-edit" title="Edit Student Record">
+                                                        ✏️ Edit
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <% }); %>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="footer-note">
+                        <span>Showing records for <%= cls %> &bull; The Leaders Memorial Private School</span>
+                        <span>Click "Profile" to view full bio-data and registered subjects</span>
+                    </div>
                 </div>
             <% }); %>
         </div>
-    </div>
+
+    </main>
 
     <script>
+        let currentClass = 'JSS1';
+
         function showClass(clsName, btn) {
+            currentClass = clsName;
             document.querySelectorAll('.class-section').forEach(sec => sec.style.display = 'none');
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('class_' + clsName).style.display = 'block';
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.remove('active');
+                b.setAttribute('aria-selected', 'false');
+            });
+            const targetSection = document.getElementById('class_' + clsName);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+            }
             btn.classList.add('active');
+            btn.setAttribute('aria-selected', 'true');
+
+            // Re-apply current search filter to active tab
+            filterRoster();
+        }
+
+        function filterRoster() {
+            const query = (document.getElementById('studentSearchInput').value || '').trim().toLowerCase();
+            const activeSection = document.getElementById('class_' + currentClass);
+            if (!activeSection) return;
+
+            const rows = activeSection.querySelectorAll('.student-row');
+            rows.forEach(row => {
+                const searchData = row.getAttribute('data-search') || '';
+                if (!query || searchData.includes(query)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
     </script>
 </body>

@@ -7,62 +7,116 @@
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root {
-            --primary-purple: #6a0dad;
-            --light-purple: #f3e8ff;
-            --accent-green: #a7d129;
-        }
+        /* Audit page — TLMPS student portal design system */
+        .audit-page { background: var(--lilac); }
+        .audit-content { padding-top: 94px; padding-bottom: 48px; }
+        .audit-layout { align-items: flex-start; }
+        .audit-main { padding-left: 24px; }
+        .audit-intro { margin: 0 0 24px; }
+        .audit-eyebrow { margin: 0 0 7px; color: var(--dark-lemon); font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; }
+        .audit-title { margin: 0; color: var(--primary); font-size: clamp(25px, 3vw, 34px); letter-spacing: -.9px; }
+        .audit-description { max-width: 590px; margin: 8px 0 0; color: var(--mid-slate); line-height: 1.6; }
+        .audit-profile-card { padding: 26px 20px; border-radius: 18px; background: var(--primary); color: var(--white); text-align: center; overflow: hidden; }
+        .audit-profile-card .profile-img { width: 88px; height: 88px; margin: 0 auto 14px; border: 3px solid rgba(255,255,255,.9); border-radius: 50%; object-fit: cover; }
+        .audit-profile-name { margin: 0 0 10px; color: var(--white); font-size: 18px; font-weight: 800; }
+        .audit-profile-meta { display: flex; justify-content: center; flex-wrap: wrap; gap: 7px; }
+        .audit-profile-meta span { padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.14); color: var(--white); font-size: 11px; font-weight: 700; }
+        .audit-profile-meta .audit-class { background: var(--lemon); color: var(--dark-slate); }
+        #audit-sidebar .sidebar-nav-v1 { overflow: hidden; border-radius: 18px; border: 1px solid rgba(59,28,86,.08); box-shadow: 0 10px 28px rgba(59,28,86,.08); }
+        #audit-sidebar .list-group { margin: 0; padding: 10px; }
+        #audit-sidebar .list-group-item { margin: 2px 0; border: 0; border-radius: 10px; }
+        #audit-sidebar .list-group-item a { display: block; padding: 11px 12px; color: var(--mid-slate); font-weight: 700; text-decoration: none; }
+        #audit-sidebar .list-group-item.active { background: var(--primary); }
+        #audit-sidebar .list-group-item.active a { color: var(--white); }
         .audit-card {
-            background: #fff;
-            border-radius: 15px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-            border-left: 5px solid var(--primary-purple);
+            background: var(--white); border-radius: 18px; padding: 24px; margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(59,28,86,.07); border: 1px solid rgba(59,28,86,.07);
         }
+        .audit-card h4 { margin: 0 0 20px; color: var(--primary); font-size: 16px; font-weight: 800; }
         .chart-container {
-            position: relative;
-            height: 300px;
-            margin-bottom: 20px;
+            position: relative; height: 280px;
         }
         .summary-stats {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px;
         }
         .stat-box {
-            background: var(--light-purple); border-radius: 10px; padding: 20px; text-align: center;
+            position: relative; overflow: hidden; background: var(--white); border-radius: 16px; padding: 20px; text-align: left;
+            border: 1px solid rgba(59,28,86,.07); box-shadow: 0 2px 8px rgba(59,28,86,.06);
         }
-        .stat-box h3 { color: var(--primary-purple); font-size: 28px; margin: 5px 0; font-weight: bold; }
-        .stat-box p { color: #666; font-size: 14px; margin: 0; }
-        .audit-table th { background: var(--primary-purple) !important; color: white !important; }
+        .stat-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--lemon); }
+        .stat-box:nth-child(2)::before { background: var(--primary-mid); }
+        .stat-box:nth-child(3)::before { background: #38bdf8; }
+        .stat-box h3 { color: var(--primary); font-size: 30px; margin: 7px 0 0; font-weight: 800; }
+        .stat-box p { color: var(--mid-slate); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; margin: 0; }
+        .audit-table th { background: var(--primary) !important; color: white !important; }
+        .audit-table { width: 100% !important; border-collapse: separate; border-spacing: 0; }
+        .audit-table th, .audit-table td { padding: 12px 15px !important; vertical-align: middle; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .audit-table th:first-child { border-radius: 8px 0 0 0; }
+        .audit-table th:last-child { border-radius: 0 8px 0 0; }
+        .audit-table tbody tr:last-child td { border-bottom: 0; }
+        .audit-table tbody tr:hover { background: #faf8ff; }
+        .audit-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 20px; }
+        .audit-kpi { padding: 20px; border: 1px solid rgba(59,28,86,.08); border-radius: 16px; background: linear-gradient(135deg, #fff 0%, #f8f4ff 100%); }
+        .audit-kpi-label { margin: 0 0 8px; color: var(--mid-slate); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+        .audit-kpi-value { margin: 0; color: var(--primary-mid); font-size: clamp(18px, 2vw, 23px); font-weight: 800; overflow-wrap: anywhere; }
+        .audit-kpi-warning { background: linear-gradient(135deg, #fff 0%, #fff8eb 100%); }
+        .audit-kpi-warning .audit-kpi-value { color: #b45309; }
+        .audit-chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 20px; }
+        .audit-chart-grid .audit-card { height: 100%; margin: 0; }
+        .audit-chart-grid .audit-card:last-child { grid-column: 1 / -1; }
+        .audit-table-card { overflow: hidden; }
+        .audit-table-card .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        @media (max-width: 991px) {
+            .audit-content { padding: 86px 15px 32px; }
+            .audit-main { width: 100%; padding: 0; }
+            .audit-layout { margin: 0; }
+            .audit-chart-grid { grid-template-columns: 1fr; }
+            .audit-chart-grid .audit-card:last-child { grid-column: auto; }
+            .chart-container { height: 250px; }
+            .audit-table { min-width: 550px; }
+        }
+        @media (max-width: 600px) {
+            .portal-topbar .portal-contact-btn { display: none; }
+            .audit-content { padding: 74px 12px 28px; }
+            .audit-intro { margin-bottom: 18px; }
+            .audit-description { font-size: 13px; }
+            .summary-stats { grid-template-columns: 1fr; gap: 10px; }
+            .stat-box { padding: 16px; }
+            .stat-box h3 { font-size: 26px; }
+            .audit-kpi-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 16px; }
+            .audit-kpi, .audit-card { padding: 16px; border-radius: 14px; }
+            .chart-container { height: 235px; }
+        }
     </style>
 </head>
-<body>
+<body class="audit-page">
+    <% const metrics = typeof auditMetrics !== 'undefined' && auditMetrics ? auditMetrics : { termTrend: [], subjectPerformance: [], highestSubject: null, lowestSubject: null }; %>
 	<div class="wrapper">
-		<!-- Header -->
-		<div class="header">
-			<div class="container">
-				<div class="row">
-                    <div class="col-md-6 col-xs-8">
-                        <a class="logo" href="/portal" style="text-decoration: none;">
-                            <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="Logo">
-                            <span class="logo-text">My TLMPS Profile</span>
-                        </a>
-                    </div>
+		<div class="portal-topbar">
+            <div class="portal-topbar-inner">
+                <a class="portal-topbar-brand" href="/portal">
+                    <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS logo">
+                    <span class="portal-topbar-divider"></span>
+                    <span class="portal-topbar-text"><span class="portal-topbar-title">The Leaders Memorial Private School</span><span class="portal-topbar-subtitle">Academic Performance Audit</span></span>
+                </a>
+                <div class="portal-topbar-actions">
+                    <a href="/portal" class="btn-ghost portal-contact-btn"><span>My Results</span></a>
+                    <button type="button" class="student-menu-toggle" aria-controls="audit-sidebar" aria-expanded="false"><span class="menu-icon" aria-hidden="true">&#9776;</span><span class="menu-label">Menu</span></button>
                 </div>
-			</div>
+            </div>
 		</div>
 
-		<div class="container content">
-			<div class="row">
+		<div class="container content audit-content">
+			<div class="row audit-layout">
 				<!-- Sidebar -->
-				<div class="col-md-3">
+                <div class="col-md-3" id="audit-sidebar">
                     <div class="sidebar-nav-v1">
-                        <div class="profile-section">
+                        <div class="audit-profile-card">
                             <img class="img-circle profile-img" src="<%= student.Passport || '/img/default-avatar.png' %>" alt="<%= student.surname %>" onerror="this.src='/img/default-avatar.png';">
-                            <h4 style="font-weight: bold; color: var(--primary-purple);"><%= student.surname %> <%= student.middle_name || '' %></h4>
-                            <span class="label label-success" style="background: var(--accent-green);"><%= student.admission_no %></span>
+                            <h4 class="audit-profile-name"><%= student.surname %> <%= student.middle_name || '' %></h4>
+                            <div class="audit-profile-meta"><span><%= student.admission_no %></span><span class="audit-class"><%= student.class_name %></span></div>
                         </div>
-                        <ul class="list-group">
+                        <ul class="list-group student-nav-links" id="audit-student-nav">
                             <li class="list-group-item">
                                 <a href="/portal"><i class="fa fa-home"></i> View All My Results</a>
                             </li>
@@ -80,8 +134,12 @@
 				</div>
 
 				<!-- Main Content -->
-				<div class="col-md-9">
-                    <div class="headline"><h2>Academic Performance Audit</h2></div>
+                <div class="col-md-9 audit-main">
+                    <div class="audit-intro">
+                        <p class="audit-eyebrow">Progress overview</p>
+                        <h1 class="audit-title">Academic Performance Audit</h1>
+                        <p class="audit-description">Review your performance across completed sessions, subjects, and terms in one clear place.</p>
+                    </div>
                     
                     <!-- Top Summary -->
                     <div class="summary-stats">
@@ -99,9 +157,20 @@
                         </div>
                     </div>
 
+                    <div class="audit-kpi-grid">
+                        <div class="audit-kpi">
+                            <p class="audit-kpi-label">Highest Performing Subject</p>
+                            <p class="audit-kpi-value"><%= metrics.highestSubject ? `${metrics.highestSubject.name} (${metrics.highestSubject.average}%)` : 'N/A' %></p>
+                        </div>
+                        <div class="audit-kpi audit-kpi-warning">
+                            <p class="audit-kpi-label">Lowest Performing Subject</p>
+                            <p class="audit-kpi-value"><%= metrics.lowestSubject ? `${metrics.lowestSubject.name} (${metrics.lowestSubject.average}%)` : 'N/A' %></p>
+                        </div>
+                    </div>
+
                     <!-- Charts Row -->
-                    <div class="row">
-                        <div class="col-md-6">
+                    <div class="audit-chart-grid">
+                        <div>
                             <div class="audit-card">
                                 <h4>Subjects vs Passes</h4>
                                 <div class="chart-container">
@@ -109,18 +178,26 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div>
                             <div class="audit-card">
-                                <h4>Academic Growth Trend</h4>
+                                <h4>Term-by-Term Score Trajectory</h4>
                                 <div class="chart-container">
-                                    <canvas id="trendChart"></canvas>
+                                    <canvas id="termTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="audit-card">
+                                <h4>Subject Mastery</h4>
+                                <div class="chart-container">
+                                    <canvas id="subjectChart"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Detailed Table -->
-                    <div class="audit-card">
+                    <div class="audit-card audit-table-card">
                         <h4>Session Breakdown</h4>
                         <div class="table-responsive">
                             <table class="table table-striped audit-table">
@@ -148,17 +225,19 @@
                         </div>
                     </div>
 
+                    <% const isSenior = (className) => /^SSS[1-3]$/i.test(String(className || '').trim()); %>
                     <% if (sessionSummaries && sessionSummaries.length > 0) { %>
                         <% sessionSummaries.forEach(session => { %>
+                            <% if (isSenior(session.class_name)) { %>
                             <div class="audit-card">
-                                <h4><%= session.session_name %> | Class: <%= session.class_name %></h4>
+                                <h4><%= session.session_name %> | Class: <%= session.class_name %> (Senior Academic Standing)</h4>
                                 <div class="table-responsive">
                                     <table class="table table-striped audit-table">
                                         <thead>
                                             <tr>
                                                 <th>Term</th>
-                                                <th>GPA</th>
-                                                <th>CGPA</th>
+                                                <th>Term GPA</th>
+                                                <th>Cumulative GPA (CGPA)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -173,6 +252,7 @@
                                     </table>
                                 </div>
                             </div>
+                            <% } %>
                         <% }) %>
                     <% } %>
 				</div>
@@ -180,13 +260,53 @@
 		</div>
 	</div>
 
+    <footer class="footer-v1 portal-footer">
+        <div class="container portal-footer-inner">
+            <div class="row portal-footer-grid">
+                <div class="col-md-4 portal-footer-brand">
+                    <img src="/img/tlmps_llogo_compressed_no_bg.png" class="footer-logo" alt="TLMPS logo">
+                    <p class="footer-school-name">The Leaders Memorial Private School</p>
+                    <p class="footer-tagline">We Nurture the Leaders of tomorrow.</p>
+                    <p class="footer-contact"><span><i class="fa fa-map-marker"></i> 17, Shoye Odubana Street, Off Papa Major B/stop, Ijegun-Ikotun, Lagos.</span><span><i class="fa fa-envelope"></i> contacttlmps@gmail.com</span></p>
+                </div>
+                <div class="col-md-4 portal-footer-social text-center">
+                    <h3>Connect With Us</h3>
+                    <div class="social-icons">
+                        <a href="#" aria-label="Facebook" title="Facebook"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M16 8.05C16 3.6 12.42 0 8 0S0 3.6 0 8.05C0 12.07 2.93 15.4 6.75 16v-5.63H4.72V8.05h2.03V6.28c0-2.02 1.2-3.13 3.02-3.13.88 0 1.79.16 1.79.16v1.98h-1.01c-.99 0-1.3.62-1.3 1.26v1.51h2.22l-.35 2.33H9.25V16C13.07 15.4 16 12.07 16 8.05Z"/></svg></a>
+                        <a href="#" aria-label="X" title="X"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 2H22l-6.77 7.73L23.2 22h-6.24l-4.89-6.4L6.47 22H3.36l7.24-8.27L2.95 2h6.4l4.42 5.84L18.9 2Zm-1.09 18h1.72L8.42 3.9H6.57L17.81 20Z"/></svg></a>
+                        <a href="#" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C5.83 0 5.56.01 4.7.05 3.85.09 3.27.22 2.76.42c-.53.2-.97.48-1.42.92C.9 1.79.62 2.24.42 2.76.22 3.27.09 3.85.05 4.7.01 5.56 0 5.83 0 8s.01 2.44.05 3.3c.04.85.17 1.43.37 1.94.2.52.48.97.92 1.42.45.44.89.72 1.42.92.51.2 1.09.33 1.94.37.85.04 1.12.05 3.3.05s2.44-.01 3.3-.05c.85-.04 1.43-.17 1.94-.37.52-.2.97-.48 1.42-.92.44-.45.72-.9.92-1.42.2-.51.33-1.09.37-1.94.04-.86.05-1.13.05-3.3s-.01-2.44-.05-3.3c-.04-.85-.17-1.43-.37-1.94a3.9 3.9 0 0 0-.92-1.42 3.9 3.9 0 0 0-1.42-.92c-.51-.2-1.09-.33-1.94-.37C10.44.01 10.17 0 8 0Zm0 1.44c2.14 0 2.39.01 3.23.05.78.03 1.2.16 1.49.27.37.15.64.32.92.6.28.28.45.55.6.92.11.28.24.7.27 1.49.04.84.05 1.1.05 3.23s-.01 2.39-.05 3.23c-.03.78-.16 1.2-.27 1.49-.15.37-.32.64-.6.92-.28.28-.55.45-.92.6-.28.11-.7.24-1.49.27-.84.04-1.1.05-3.23.05s-2.39-.01-3.23-.05c-.78-.03-1.2-.16-1.49-.27a2.5 2.5 0 0 1-.92-.6 2.5 2.5 0 0 1-.6-.92c-.11-.28-.24-.7-.27-1.49-.04-.84-.05-1.1-.05-3.23s.01-2.39.05-3.23c.03-.78.16-1.2.27-1.49.15-.37.32-.64.6-.92.28-.28.55-.45.92-.6.28-.11.7-.24 1.49-.27.84-.04 1.1-.05 3.23-.05Zm0 2.45A4.11 4.11 0 1 0 8 12.1 4.11 4.11 0 0 0 8 3.89Zm0 1.44A2.67 2.67 0 1 1 8 10.67 2.67 2.67 0 0 1 8 5.33Zm4.27-2.56a.96.96 0 1 0 0 1.92.96.96 0 0 0 0-1.92Z"/></svg></a>
+                        <a href="#" aria-label="YouTube" title="YouTube"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.05 2h.09c.82 0 4.99.03 6.11.34a2.01 2.01 0 0 1 1.42 1.42c.2.77.33 2 .33 3.82s-.13 3.05-.33 3.82a2.01 2.01 0 0 1-1.42 1.42c-1.12.3-5.29.33-6.11.33h-.28c-.82 0-4.99-.03-6.11-.33a2.01 2.01 0 0 1-1.42-1.42C.13 10.63 0 9.4 0 7.58s.13-3.05.33-3.82a2.01 2.01 0 0 1 1.42-1.42C2.87 2.03 7.04 2 7.86 2h.19ZM6.4 5.21v4.82l4.16-2.41L6.4 5.21Z"/></svg></a>
+                    </div>
+                    <a href="https://tlmps.netlify.app" target="_blank" class="portal-footer-website">Visit Main Website</a>
+                </div>
+                <div class="col-md-4 portal-footer-copyright text-right">
+                    <p><script>document.write(new Date().getFullYear())</script> &copy; All Rights Reserved.<br>Powered by <strong>TLMPS Tech</strong></p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script>
+        const auditHeaderToggle = document.querySelector('.student-menu-toggle');
+        const auditSidebar = document.getElementById('audit-sidebar');
+        auditHeaderToggle.addEventListener('click', () => {
+            const isOpen = auditSidebar.classList.toggle('is-open');
+            auditHeaderToggle.setAttribute('aria-expanded', String(isOpen));
+        });
+        document.addEventListener('click', (event) => {
+            if (window.innerWidth < 992 && auditSidebar.classList.contains('is-open') && !auditSidebar.contains(event.target) && !auditHeaderToggle.contains(event.target)) {
+                auditSidebar.classList.remove('is-open');
+                auditHeaderToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+
         const auditData = <%- JSON.stringify(auditData) %>;
         const labels = auditData.map(d => d.session.replace('_and_', '/'));
         const totalSubs = auditData.map(d => d.totalSubjects);
         const passedSubs = auditData.map(d => d.totalPassed);
-        const averages = auditData.map(d => d.average);
+        const termTrend = <%- JSON.stringify(metrics.termTrend) %>;
+        const subjectPerformance = <%- JSON.stringify(metrics.subjectPerformance) %>;
 
         // Bar Chart: Subjects vs Passes
         new Chart(document.getElementById('passesChart'), {
@@ -214,19 +334,19 @@
             }
         });
 
-        // Line Chart: Average Trend
-        new Chart(document.getElementById('trendChart'), {
+        // Line Chart: term-by-term trajectory
+        new Chart(document.getElementById('termTrendChart'), {
             type: 'line',
             data: {
-                labels: labels,
+                labels: termTrend.map(item => item.label),
                 datasets: [{
-                    label: 'Average Score (%)',
-                    data: averages,
-                    borderColor: '#a7d129',
-                    backgroundColor: 'rgba(167, 209, 41, 0.2)',
+                    label: 'Term Average (%)',
+                    data: termTrend.map(item => item.average),
+                    borderColor: '#6a0dad',
+                    backgroundColor: 'rgba(106, 13, 173, 0.1)',
                     fill: true,
-                    tension: 0.4,
-                    pointRadius: 6,
+                    tension: 0.3,
+                    pointRadius: 4,
                     pointBackgroundColor: '#6a0dad'
                 }]
             },
@@ -235,10 +355,47 @@
                 scales: { 
                     y: { 
                         beginAtZero: false,
-                        suggestedMin: 40,
+                        suggestedMin: 0,
                         suggestedMax: 100
                     } 
                 }
+            }
+        });
+
+        const masteryGroups = {
+            Languages: ['english', 'yoruba', 'french', 'language'],
+            Mathematics: ['math', 'mathematics', 'further mathematics'],
+            Sciences: ['biology', 'chemistry', 'physics', 'basic science', 'agricultural'],
+            Humanities: ['civic', 'government', 'history', 'social', 'geography', 'religious'],
+            Creative: ['creative', 'technical', 'fine art', 'music']
+        };
+        const masteryLabels = Object.keys(masteryGroups);
+        const masteryValues = masteryLabels.map(group => {
+            const matches = subjectPerformance.filter(subject => {
+                const name = subject.name.toLowerCase();
+                return masteryGroups[group].some(keyword => name.includes(keyword));
+            });
+            return matches.length
+                ? matches.reduce((total, subject) => total + subject.average, 0) / matches.length
+                : 0;
+        });
+
+        new Chart(document.getElementById('subjectChart'), {
+            type: 'radar',
+            data: {
+                labels: masteryLabels,
+                datasets: [{
+                    label: 'Average (%)',
+                    data: masteryValues,
+                    borderColor: '#6a0dad',
+                    backgroundColor: 'rgba(106, 13, 173, 0.16)',
+                    pointBackgroundColor: '#6a0dad'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { r: { beginAtZero: true, suggestedMax: 100 } }
             }
         });
     </script>

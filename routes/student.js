@@ -1,9 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+const bcrypt = require("bcryptjs");
+const { calculatePromotionOutcome } = require("../services/promotion");
 
 const renderLogin = (res, error = null) =>
   res.render("student/login", { error });
+const passwordMatches = (student, value, callback) => {
+  if (student.password_hash) return bcrypt.compare(value, student.password_hash, callback);
+  callback(null, String(student.surname || "").toLowerCase() === String(value || "").toLowerCase());
+};
 
 const requireStudent = (req, res, next) => {
   if (req.session && req.session.student) return next();
@@ -69,10 +75,21 @@ const seniorGradePoint = (score) => {
   return 0;
 };
 
+// A LEFT JOIN produces `score_id: null` for an unentered score.  Do not turn
+// that into a zero/fail for GPA or let one entered subject stand in for a term.
+// Test/legacy rows without a score_id field are treated as recorded values.
+const hasRecordedScore = (row) =>
+  !Object.prototype.hasOwnProperty.call(row || {}, "score_id") ||
+  row.score_id != null;
+
+const hasCompleteTermScores = (rows) =>
+  Array.isArray(rows) && rows.length > 0 && rows.every(hasRecordedScore);
+
 const calculateGpa = (rows) => {
-  const scoredRows = (rows || []).filter(
-    (row) => row.score_id != null || row.total_score != null,
-  );
+  if (!hasCompleteTermScores(rows)) {
+    return { qualityPoints: 0, units: 0, value: null, complete: false };
+  }
+  const scoredRows = rows;
   const totals = scoredRows.reduce(
     (result, row) => {
       const units = Number(row.unit_weight) > 0 ? Number(row.unit_weight) : 1;
@@ -87,15 +104,13 @@ const calculateGpa = (rows) => {
   return {
     ...totals,
     value: totals.units ? totals.qualityPoints / totals.units : null,
+    complete: true,
   };
 };
 
 const calculateTermAveragePercent = (rows) => {
-  const scoredRows = (rows || []).filter(
-    (row) => row.score_id != null || row.total_score != null,
-  );
-
-  if (!scoredRows.length) return null;
+  if (!hasCompleteTermScores(rows)) return null;
+  const scoredRows = rows;
 
   const totalMarksObtained = scoredRows.reduce(
     (total, row) => total + Number(row.total_score || 0),
@@ -235,10 +250,12 @@ const buildSessionPerformance = (rows) => {
         session_name: sessionName,
         class_name: className,
         terms: new Map(),
+        subjects: new Set(),
       });
     }
 
     const sessionEntry = groupedSessions.get(sessionId);
+    if (row.subject_name) sessionEntry.subjects.add(row.subject_name);
     const termKey =
       row.term_id ?? `${row.term_name || "Term"}-${row.term_number || 0}`;
 
@@ -290,6 +307,9 @@ const buildSessionPerformance = (rows) => {
         session_id: sessionEntry.session_id,
         session_name: sessionEntry.session_name,
         class_name: sessionEntry.class_name,
+        subjects: Array.from(sessionEntry.subjects).sort((left, right) =>
+          String(left).localeCompare(String(right)),
+        ),
         terms,
         cgpa: cumulativeUnits
           ? Number(cumulativeQualityPoints / cumulativeUnits).toFixed(2)
@@ -310,6 +330,61 @@ const termOrder = (termName) => {
   return 99;
 };
 
+const buildAuditMetrics = (rows) => {
+  const terms = new Map();
+  const subjects = new Map();
+
+  (rows || []).forEach((row) => {
+    if (row.score_id == null && row.total_score == null) return;
+    const score = Number(row.total_score || 0);
+    const termKey = `${row.session_id}-${row.term_id}`;
+    const termEntry = terms.get(termKey) || {
+      sessionName: row.session || row.session_name || "Session",
+      termName: row.term_name || "Term",
+      termNumber: row.term_number || 1,
+      total: 0,
+      count: 0,
+    };
+    termEntry.total += score;
+    termEntry.count += 1;
+    terms.set(termKey, termEntry);
+
+    const subjectKey = row.subject_id || row.subject_name;
+    const subjectEntry = subjects.get(subjectKey) || {
+      name: row.subject_name || "Subject",
+      total: 0,
+      count: 0,
+    };
+    subjectEntry.total += score;
+    subjectEntry.count += 1;
+    subjects.set(subjectKey, subjectEntry);
+  });
+
+  const termTrend = Array.from(terms.values())
+    .sort(
+      (left, right) =>
+        String(left.sessionName).localeCompare(String(right.sessionName)) ||
+        Number(left.termNumber) - Number(right.termNumber),
+    )
+    .map((entry) => ({
+      label: `${entry.sessionName} ${entry.termName}`,
+      average: entry.count ? Number((entry.total / entry.count).toFixed(1)) : 0,
+    }));
+  const subjectPerformance = Array.from(subjects.values())
+    .map((entry) => ({
+      name: entry.name,
+      average: entry.count ? Number((entry.total / entry.count).toFixed(1)) : 0,
+    }))
+    .sort((left, right) => right.average - left.average);
+
+  return {
+    termTrend,
+    subjectPerformance,
+    highestSubject: subjectPerformance[0] || null,
+    lowestSubject: subjectPerformance[subjectPerformance.length - 1] || null,
+  };
+};
+
 router.get("/login", (req, res) => renderLogin(res));
 
 router.post("/login", (req, res) => {
@@ -319,20 +394,59 @@ router.post("/login", (req, res) => {
     return renderLogin(res, "Enter your admission number and surname.");
 
   db.get(
-    `SELECT s.admission_no
+    `SELECT s.admission_no, s.surname, s.password_hash
      FROM students s
-     JOIN academic_session_enrollments e ON e.admission_no = s.admission_no
-     WHERE s.admission_no = ? AND LOWER(s.surname) = LOWER(?)
-       AND e.enrollment_status = 'Enrolled'
+     WHERE s.admission_no = ?
      LIMIT 1`,
-    [admissionNo, surname],
+    [admissionNo],
     (err, student) => {
-      if (err || !student)
-        return renderLogin(res, "Invalid admission number or surname.");
-      req.session.student = { admission_no: student.admission_no };
-      res.redirect("/portal");
+      if (err || !student) return renderLogin(res, "Invalid admission number or password.");
+      passwordMatches(student, surname, (matchErr, matches) => {
+        if (matchErr || !matches) return renderLogin(res, "Invalid admission number or password.");
+        req.session.student = { admission_no: student.admission_no };
+        res.redirect("/portal");
+      });
     },
   );
+});
+
+router.get("/forgot-password", (req, res) => res.render("student/forgot-password", { error: null, result: null, resetReady: false }));
+router.post("/forgot-password", (req, res) => {
+  const action = req.body.action;
+  const phone = String(req.body.phone_number || "").trim();
+  const admissionNo = String(req.body.admission_no || "").trim();
+  const currentPassword = String(req.body.current_password || "").trim();
+  const render = (error = null, result = null, resetReady = false) => res.render("student/forgot-password", { error, result, resetReady });
+  if (!phone) return render("Enter the parent phone number.");
+  if (action === "reset") {
+    if (!admissionNo) return render("Enter the admission number to reset the password.");
+    return db.get("SELECT admission_no, phone_number FROM students WHERE admission_no = ? AND phone_number = ?", [admissionNo, phone], (err, student) => {
+      if (err || !student) return render("We could not verify those details.");
+      req.session.passwordRecovery = { admission_no: student.admission_no, expires: Date.now() + 10 * 60 * 1000 };
+      render(null, null, true);
+    });
+  }
+  if (!currentPassword) return render("Enter the current password to recover the admission number.");
+  db.get("SELECT admission_no, surname, password_hash FROM students WHERE phone_number = ?", [phone], (err, student) => {
+    if (err || !student) return render("We could not verify those details.");
+    passwordMatches(student, currentPassword, (matchErr, matches) => {
+      if (matchErr || !matches) return render("We could not verify those details.");
+      render(null, student.admission_no, false);
+    });
+  });
+});
+router.post("/reset-password", (req, res) => {
+  const recovery = req.session.passwordRecovery;
+  const password = String(req.body.password || "");
+  if (!recovery || recovery.expires < Date.now()) return res.redirect("/forgot-password");
+  if (password.length < 8 || password !== req.body.confirm_password) return res.render("student/forgot-password", { error: "Use matching passwords of at least 8 characters.", result: null, resetReady: true });
+  bcrypt.hash(password, 12, (err, hash) => {
+    if (err) return res.render("student/forgot-password", { error: "Could not reset the password. Please try again.", result: null, resetReady: true });
+    db.run("UPDATE students SET password_hash = ? WHERE admission_no = ?", [hash, recovery.admission_no], () => {
+      delete req.session.passwordRecovery;
+      res.render("student/login", { error: null, success: "Password reset successfully. Please log in." });
+    });
+  });
 });
 
 router.get("/logout", (req, res) => {
@@ -346,7 +460,7 @@ router.get("/audit", requireStudent, (req, res) => {
     db.all(
       `SELECT a.session_id, a.session_name AS session, e.class_name AS class,
               t.term_id, t.term_name, t.term_number,
-              ss.subject_id, sub.unit_weight,
+              ss.subject_id, sub.subject_name, sub.unit_weight,
               sc.score_id, sc.total_score
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
@@ -360,7 +474,7 @@ router.get("/audit", requireStudent, (req, res) => {
         AND sc.session_id = e.session_id
         AND sc.term_id = t.term_id
         AND sc.subject_id = ss.subject_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
+       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
        ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
       (auditErr, sessionRows) => {
@@ -380,7 +494,7 @@ router.get("/audit", requireStudent, (req, res) => {
              ON sc.admission_no = e.admission_no
             AND sc.session_id = e.session_id
             AND sc.subject_id = ss.subject_id
-           WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
+           WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
            GROUP BY a.session_id, a.session_name, e.class_name
            ORDER BY a.session_id ASC`,
           [student.admission_no],
@@ -389,6 +503,7 @@ router.get("/audit", requireStudent, (req, res) => {
               student: legacyStudent(student),
               auditData: summaryErr ? [] : auditData || [],
               sessionSummaries: buildSessionPerformance(detailedRows),
+              auditMetrics: buildAuditMetrics(detailedRows),
             });
           },
         );
@@ -407,7 +522,7 @@ router.get("/portal", requireStudent, (req, res) => {
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
        JOIN student_scores sc ON sc.admission_no = e.admission_no AND sc.session_id = a.session_id
        JOIN academic_terms t ON t.term_id = sc.term_id AND t.session_id = a.session_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
+       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
        GROUP BY a.session_id, a.session_name, e.class_name
        ORDER BY a.session_id DESC`,
       [student.admission_no],
@@ -454,7 +569,7 @@ router.get("/profile", requireStudent, (req, res) => {
         AND sc.session_id = e.session_id
         AND sc.term_id = t.term_id
         AND sc.subject_id = ss.subject_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled'
+       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
        ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
       (err, sessionRows) => {
@@ -479,7 +594,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
       `SELECT a.*, e.class_name
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
-       WHERE a.session_id = ? AND e.admission_no = ? AND e.enrollment_status = 'Enrolled'`,
+       WHERE a.session_id = ? AND e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0`,
       [sessionId, student.admission_no],
       (enrollmentErr, enrollment) => {
         db.get(
@@ -644,7 +759,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                       ? ((grandTotal / maxObtainable) * 100).toFixed(1)
                       : "0.0";
                     db.all(
-                      `SELECT t.term_id, t.term_name, sub.unit_weight, sc.score_id,
+                      `SELECT t.term_id, t.term_name, t.term_number, sub.unit_weight, sc.score_id,
                               sc.total_score
                        FROM academic_terms t
                        JOIN student_subject_selections ss
@@ -737,13 +852,17 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                               0,
                             ) / termAverageEntries.length
                           : Number(currentAvg);
+                        const promotionOutcome = calculatePromotionOutcome(historyRows || []);
                         const promoMsg = String(term.term_name || "")
                           .toLowerCase()
-                          .includes("third term")
+                          .includes("third term") && promotionOutcome.complete
                           ? buildPromotionMessage(
                               enrollment.class_name,
-                              cumulativeAverageValue,
+                              promotionOutcome.cumulativeAverage,
                             )
+                          : null;
+                        const resultStatus = Number(term.term_number) === 3 && !promotionOutcome.complete
+                          ? "Pending Review — Third Term scores are incomplete."
                           : null;
                         const classRank = positionByStudent.get(
                           student.admission_no,
@@ -762,44 +881,84 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                           lowScoringSubjects,
                           student.admission_no,
                         );
-                        res.render("student/dashboard", {
-                          student: legacyStudent(student),
-                          session: enrollment.session_name,
-                          term: term.term_name,
-                          scores: reportScores,
-                          grandTotal,
-                          totalSubjects,
-                          currentAvg,
-                          t1Avg: firstTermAverage
-                            ? Number(firstTermAverage.average).toFixed(1)
-                            : "0.0",
-                          t2Avg: secondTermAverage
-                            ? Number(secondTermAverage.average).toFixed(1)
-                            : "0.0",
-                          cumulativeAvg: cumulativeAverageValue.toFixed(1),
-                          gpa: currentGpa.value,
-                          cgpa: cumulativeGpa,
-                          position: positionByStudent.has(student.admission_no)
-                            ? ordinal(
-                                positionByStudent.get(student.admission_no),
+                        db.get(
+                          `SELECT * FROM class_teacher_remarks
+                           WHERE admission_no = ? AND session_id = ? AND term_id = ?`,
+                          [student.admission_no, sessionId, termId],
+                          (remarksErr, remarks) => {
+                            res.render("student/dashboard", {
+                              student: legacyStudent({ ...student, class_name: enrollment.class_name, department: enrollment.department || student.department }),
+                              session: enrollment.session_name,
+                              term: term.term_name,
+                              scores: reportScores,
+                              grandTotal,
+                              totalSubjects,
+                              currentAvg,
+                              t1Avg: firstTermAverage
+                                ? Number(firstTermAverage.average).toFixed(1)
+                                : "0.0",
+                              t2Avg: secondTermAverage
+                                ? Number(secondTermAverage.average).toFixed(1)
+                                : "0.0",
+                              cumulativeAvg: cumulativeAverageValue.toFixed(1),
+                              gpa: currentGpa.value,
+                              cgpa: cumulativeGpa,
+                              position: positionByStudent.has(
+                                student.admission_no,
                               )
-                            : "-",
-                          promoMsg,
-                          finalPrincipalRemark,
-                          extra: {
-                            days_opened: term.days_school_opened || "",
-                            days_present: "",
-                            days_absent: "",
-                            reason: "",
-                            next_term: term.next_term_resumes || "",
-                            teacher_comment: "",
-                            punctuality: "",
-                            neatness: "",
-                            obedience: "",
-                            honesty: "",
-                            discipline: "",
+                                ? ordinal(
+                                    positionByStudent.get(student.admission_no),
+                                  )
+                                : "-",
+                              promoMsg,
+                              resultStatus,
+                              finalPrincipalRemark,
+                              extra: {
+                                days_opened: term.days_school_opened || "",
+                                days_present:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.days_present,
+                                days_absent:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.days_absent,
+                                reason: "",
+                                next_term: term.next_term_resumes || "",
+                                teacher_comment:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.teacher_comment,
+                                teacher_name:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.teacher_name,
+                                conduct_rating:
+                                  remarksErr || !remarks
+                                    ? 5
+                                    : remarks.conduct_rating,
+                                punctuality:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.punctuality,
+                                neatness:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.neatness,
+                                obedience:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.obedience,
+                                honesty:
+                                  remarksErr || !remarks ? "" : remarks.honesty,
+                                discipline:
+                                  remarksErr || !remarks
+                                    ? ""
+                                    : remarks.discipline,
+                              },
+                            });
                           },
-                        });
+                        );
                       },
                     );
                   },

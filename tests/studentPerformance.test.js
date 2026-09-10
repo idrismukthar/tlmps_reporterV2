@@ -70,7 +70,14 @@ assert.equal(built[0].class_name, "SSS1");
 assert.equal(built[0].terms.length, 2);
 assert.equal(Number(built[0].terms[0].gpa), 4.5);
 assert.equal(Number(built[0].terms[1].gpa), 2.75);
-assert.equal(Number(built[0].cgpa), 3.62);
+assert.equal(Number(built[0].cgpa), 3.63);
 assert.equal(built[1].class_name, "SSS2");
 assert.equal(Number(built[1].cgpa), 5);
 console.log("studentPerformance test passed");
+
+const incompleteTerm = studentRoutes.buildSessionPerformance([
+  { session_id: 3, session_name: "2026/2027", class_name: "SSS1", term_id: 30, term_name: "First Term", term_number: 1, subject_id: 1, unit_weight: 1, score_id: 1, total_score: 76 },
+  { session_id: 3, session_name: "2026/2027", class_name: "SSS1", term_id: 30, term_name: "First Term", term_number: 1, subject_id: 2, unit_weight: 1, score_id: null, total_score: null },
+]);
+assert.equal(incompleteTerm[0].terms[0].gpa, null, "An incomplete term must not receive a GPA");
+assert.equal(incompleteTerm[0].cgpa, null, "An incomplete term must not receive a CGPA");

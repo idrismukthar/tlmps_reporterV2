@@ -2,66 +2,574 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Student Profile - <%= student.admission_no %></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Profile — <%= student.admission_no %> | TLMPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 25px; }
-        .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .profile-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0d6efd; padding-bottom: 15px; margin-bottom: 20px; }
-        .passport-box { width: 100px; height: 100px; border: 2px solid #0d6efd; border-radius: 6px; overflow: hidden; }
-        .passport-box img { width: 100%; height: 100%; object-fit: cover; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .info-item { background: #f8f9fa; padding: 10px; border-radius: 4px; border-left: 3px solid #0d6efd; }
-        .info-item label { display: block; font-size: 12px; color: #6c757d; text-transform: uppercase; font-weight: bold; }
-        .info-item span { font-size: 15px; font-weight: bold; color: #212529; }
-        .btn-pdf, .btn-edit { display: inline-block; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 25px; text-align: center; }
-        .btn-pdf { background: #198754; }
-        .btn-edit { background: #0d6efd; margin-right: 8px; }
-        a.back-btn { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; font-weight: bold; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --purple: #3B1C56;
+            --purple-mid: #5C2D91;
+            --purple-light: #EBE3F7;
+            --lilac: #F4F0FA;
+            --lemon: #84CC16;
+            --lemon-dark: #65A30D;
+            --lemon-bg: #ECFDF5;
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --slate-400: #94A3B8;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(59,28,86,0.08), 0 1px 2px rgba(59,28,86,0.06);
+            --shadow-md: 0 4px 16px rgba(59,28,86,0.12), 0 2px 6px rgba(59,28,86,0.06);
+            --shadow-lg: 0 10px 36px rgba(59,28,86,0.15), 0 4px 12px rgba(59,28,86,0.08);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--lilac);
+            min-height: 100vh;
+            color: var(--slate-800);
+        }
+
+        /* ─── TOP NAVIGATION BAR ─── */
+        .topbar {
+            background: var(--purple);
+            padding: 12px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 12px rgba(59,28,86,0.35);
+        }
+        .topbar-logo {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+        .topbar-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+        }
+        .topbar-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .topbar-sub {
+            color: rgba(255,255,255,0.6);
+            font-size: 12px;
+            font-weight: 400;
+            margin-top: 1px;
+        }
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.2); transform: translateY(-1px); }
+        .btn-edit {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .btn-edit:hover { background: rgba(255,255,255,0.25); }
+        .btn-pdf {
+            background: var(--lemon);
+            color: var(--slate-900);
+            border: none;
+        }
+        .btn-pdf:hover { background: var(--lemon-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(132,204,22,0.35); }
+
+        /* ─── PAGE CONTENT ─── */
+        .page-content {
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 28px 24px 48px;
+        }
+
+        /* ─── HERO PROFILE CARD ─── */
+        .hero-card {
+            background: var(--purple);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -60px; right: -60px;
+            width: 200px; height: 200px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -40px; left: 180px;
+            width: 140px; height: 140px;
+            background: rgba(132,204,22,0.07);
+            border-radius: 50%;
+        }
+
+        /* Passport Photo */
+        .passport-frame {
+            flex-shrink: 0;
+            width: 110px;
+            height: 130px;
+            border-radius: 14px;
+            border: 3px solid rgba(255,255,255,0.25);
+            overflow: hidden;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+        .passport-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .passport-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255,255,255,0.4);
+        }
+        .passport-placeholder svg { width: 36px; height: 36px; }
+        .passport-placeholder span { font-size: 11px; font-weight: 500; }
+
+        /* Hero Info */
+        .hero-info { flex: 1; position: relative; z-index: 1; }
+        .hero-name {
+            font-size: 24px;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .badge-adm {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.25);
+        }
+        .badge-class {
+            background: var(--lemon);
+            color: var(--slate-900);
+        }
+        .badge-dept {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.85);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .badge-session {
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .hero-gender-tag {
+            color: rgba(255,255,255,0.55);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* ─── SECTION CARDS ─── */
+        .card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(59,28,86,0.06);
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--purple);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--purple-light);
+        }
+
+        /* ─── INFO GRID ─── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .info-item {
+            background: var(--slate-100);
+            border-radius: 10px;
+            padding: 12px 14px 12px 18px;
+            border-left: 3px solid var(--purple);
+            transition: transform 0.15s ease;
+        }
+        .info-item:hover { transform: translateX(2px); }
+        .info-item.full-width { grid-column: span 2; }
+        .info-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--slate-400);
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--slate-800);
+        }
+
+        /* ─── DOB SPECIAL CARD ─── */
+        .dob-item {
+            background: var(--lilac);
+            border-left: 3px solid var(--purple-mid);
+        }
+        .dob-raw {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--purple);
+        }
+        .dob-words {
+            margin-top: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--purple);
+            color: white;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        /* ─── SUBJECTS SECTION ─── */
+        .subjects-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        .total-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--lemon-bg);
+            border: 1.5px solid var(--lemon);
+            color: #15803D;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .total-badge .count {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--lemon-dark);
+        }
+
+        /* 2-column subjects grid */
+        .subjects-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .subject-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            background: var(--slate-100);
+            border-radius: 8px;
+            padding: 9px 12px;
+            border-left: 3px solid var(--purple-light);
+            transition: all 0.15s ease;
+        }
+        .subject-item:hover {
+            border-left-color: var(--lemon);
+            background: #F9FDF2;
+        }
+        .subject-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--purple);
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+        .subject-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--slate-800);
+            flex: 1;
+        }
+        .unit-tag {
+            flex-shrink: 0;
+            background: var(--purple);
+            color: white;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 2px 6px;
+        }
+
+        /* ─── TOTAL SUBJECTS SUMMARY BANNER ─── */
+        .summary-banner {
+            margin-top: 16px;
+            background: var(--purple);
+            color: white;
+            border-radius: 12px;
+            padding: 14px 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .summary-banner-text {
+            font-size: 13px;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+        .summary-banner-number {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--lemon);
+            line-height: 1;
+        }
+        .summary-banner-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            opacity: 0.6;
+        }
+
+        @media (max-width: 600px) {
+            .info-grid { grid-template-columns: 1fr; }
+            .info-item.full-width { grid-column: span 1; }
+            .subjects-grid { grid-template-columns: 1fr; }
+            .hero-card { flex-direction: column; text-align: center; }
+            .hero-badges { justify-content: center; }
+            .topbar { padding: 12px 16px; }
+            .topbar-actions { gap: 6px; }
+            .btn { padding: 7px 12px; font-size: 12px; }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <a href="/superadmin/all-students" class="back-btn">&larr; Back to Students Roster</a>
 
-        <div class="profile-header">
-            <div>
-                <h2 style="margin: 0;"><%= student.surname %> <%= student.middle_name || '' %> <%= student.last_name %></h2>
-                <p style="margin: 5px 0 0; color: #6c757d;">Admission Number: <strong><%= student.admission_no %></strong></p>
-            </div>
-            <div class="passport-box">
+    <!-- TOP NAVIGATION BAR -->
+    <div class="topbar">
+        <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS Logo" class="topbar-logo"
+             onerror="this.src='/img/tlmps_llogo_compressed.jpg'">
+        <div class="topbar-divider"></div>
+        <div>
+            <div class="topbar-title">Student Profile</div>
+            <div class="topbar-sub">The Leaders Memorial Private School</div>
+        </div>
+        <div class="topbar-actions">
+            <a href="/superadmin/all-students" class="btn btn-ghost">
+                ← Back to Roster
+            </a>
+            <a href="/superadmin/student/<%= student.admission_no %>/edit<%= session ? '?session_id=' + session.session_id : '' %>" class="btn btn-edit">
+                ✏️ Edit Profile
+            </a>
+            <a href="/superadmin/download-pdf/<%= student.admission_no %>" class="btn btn-pdf">
+                📄 Download Slip
+            </a>
+        </div>
+    </div>
+
+    <div class="page-content">
+
+        <!-- HERO PROFILE CARD -->
+        <div class="hero-card">
+            <div class="passport-frame">
                 <% if (student.passport_url) { %>
-                    <img src="<%= student.passport_url %>" alt="Passport">
+                    <img src="<%= student.passport_url %>" alt="Passport Photo">
                 <% } else { %>
-                    <div style="text-align: center; padding-top: 35px; color: #888; font-size: 12px;">No Image</div>
+                    <div class="passport-placeholder">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                        <span>No Photo</span>
+                    </div>
                 <% } %>
             </div>
+            <div class="hero-info">
+                <div class="hero-name">
+                    <%= student.surname %> <%= student.middle_name || '' %> <%= student.last_name %>
+                </div>
+                <div class="hero-badges">
+                    <span class="badge badge-adm">🪪 Adm No: <%= student.admission_no %></span>
+                    <span class="badge badge-class">🎓 <%= student.class_name %></span>
+                    <% if (student.department) { %>
+                        <span class="badge badge-dept">🏛️ <%= student.department %></span>
+                    <% } %>
+                </div>
+                <div class="hero-gender-tag">
+                    <%= student.gender === 'Male' ? '♂️' : '♀️' %> <%= student.gender %> &nbsp;·&nbsp;
+                    <%= student.state_of_origin %>
+                </div>
+            </div>
         </div>
 
-        <div class="info-grid">
-            <div class="info-item"><label>Class</label><span><%= student.class_name %></span></div>
-            <div class="info-item"><label>Department</label><span><%= student.department || 'N/A' %></span></div>
-            <div class="info-item"><label>Gender</label><span><%= student.gender %></span></div>
-            <div class="info-item"><label>Date of Birth</label><span><%= student.dob %></span></div>
-            <div class="info-item"><label>Phone Number</label><span><%= student.phone_number %></span></div>
-            <div class="info-item"><label>Email</label><span><%= student.email || 'N/A' %></span></div>
-            <div class="info-item"><label>State of Origin</label><span><%= student.state_of_origin %></span></div>
-            <div class="info-item"><label>LGA</label><span><%= student.lga %></span></div>
-            <div class="info-item"><label>Club</label><span><%= student.club || 'N/A' %></span></div>
-            <div class="info-item"><label>Society</label><span><%= student.society || 'N/A' %></span></div>
-            <div class="info-item" style="grid-column: span 2;"><label>Residential Address</label><span><%= student.address %></span></div>
+        <!-- PERSONAL INFORMATION CARD -->
+        <div class="card">
+            <div class="card-title">Personal Information</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Phone Number</div>
+                    <div class="info-value">📞 <%= student.phone_number %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Email Address</div>
+                    <div class="info-value">📧 <%= student.email || 'N/A' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">State of Origin</div>
+                    <div class="info-value">🗺️ <%= student.state_of_origin %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Local Government Area</div>
+                    <div class="info-value">📍 <%= student.lga %></div>
+                </div>
+                <div class="info-item dob-item">
+                    <div class="info-label">Date of Birth</div>
+                    <div class="dob-raw">🎂 <%= student.dob %></div>
+                    <div>
+                        <span class="dob-words">
+                            📅 <%= dobInWords %>
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Gender</div>
+                    <div class="info-value"><%= student.gender %></div>
+                </div>
+                <div class="info-item full-width">
+                    <div class="info-label">Residential Address</div>
+                    <div class="info-value">🏠 <%= student.address %></div>
+                </div>
+            </div>
         </div>
 
-        <h3 style="margin-top: 25px;">Enrolled Subjects</h3>
-        <ul>
-            <% enrolledSubjects.forEach(sub => { %>
-                <li><%= sub.subject_name %> <% if(sub.level_category === 'SSS') { %>(<%= sub.unit_weight %> Unit<%= sub.unit_weight > 1 ? 's' : '' %>)<% } %></li>
-            <% }); %>
-        </ul>
+        <!-- EXTRACURRICULAR CARD -->
+        <div class="card">
+            <div class="card-title">Extracurricular</div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Club</div>
+                    <div class="info-value">🏆 <%= student.club || 'N/A' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Society</div>
+                    <div class="info-value">🎭 <%= student.society || 'N/A' %></div>
+                </div>
+            </div>
+        </div>
 
-        <a href="/superadmin/student/<%= student.admission_no %>/edit" class="btn-edit">Edit Profile</a>
-        <a href="/superadmin/download-pdf/<%= student.admission_no %>" class="btn-pdf">
-            📥 Download Registration Slip (PDF)
-        </a>
+        <!-- ENROLLED SUBJECTS CARD -->
+        <div class="card">
+            <div class="subjects-header">
+                <div class="card-title" style="margin-bottom:0; flex: 1;">Enrolled Subjects</div>
+                <div class="total-badge">
+                    📚 Total Subjects Offered: <span class="count"><%= enrolledSubjects.length %></span>
+                </div>
+            </div>
+
+            <% if (enrolledSubjects.length === 0) { %>
+                <div style="text-align:center; padding:32px 0; color:var(--slate-400); font-size:14px; font-weight:500;">
+                    No subjects enrolled yet.
+                </div>
+            <% } else { %>
+                <div class="subjects-grid">
+                    <% enrolledSubjects.forEach(sub => { %>
+                        <div class="subject-item">
+                            <div class="subject-dot"></div>
+                            <div class="subject-name"><%= sub.subject_name %></div>
+                            <% if (sub.level_category === 'SSS') { %>
+                                <span class="unit-tag"><%= sub.unit_weight %> Unit<%= sub.unit_weight > 1 ? 's' : '' %></span>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                </div>
+
+                <!-- SUMMARY BANNER -->
+                <div class="summary-banner">
+                    <div>
+                        <div class="summary-banner-text">Student is officially enrolled in</div>
+                        <div class="summary-banner-label">Total subjects this academic session</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div class="summary-banner-number"><%= enrolledSubjects.length %></div>
+                        <div class="summary-banner-label">Subject<%= enrolledSubjects.length !== 1 ? 's' : '' %></div>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+
     </div>
+
 </body>
 </html>

@@ -2,58 +2,522 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Manage Sessions & Terms - TLMPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Sessions & Workspaces — TLMPS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 30px; }
-        .card { max-width: 600px; margin: 0 auto 20px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; }
-        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
-        .btn { background: #0d6efd; color: #fff; padding: 10px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; }
-        .btn-success { background: #198754; }
-        a { display: inline-block; margin-bottom: 15px; color: #0d6efd; text-decoration: none; }
-        .term-card { border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-top: 15px; background: #fafafa; }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --purple: #3B1C56;
+            --purple-mid: #5C2D91;
+            --purple-light: #EBE3F7;
+            --lilac: #F4F0FA;
+            --lemon: #84CC16;
+            --lemon-dark: #65A30D;
+            --lemon-bg: #ECFDF5;
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --slate-400: #94A3B8;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --white: #FFFFFF;
+            --shadow-sm: 0 1px 3px rgba(59,28,86,0.08), 0 1px 2px rgba(59,28,86,0.06);
+            --shadow-md: 0 4px 16px rgba(59,28,86,0.12), 0 2px 6px rgba(59,28,86,0.06);
+            --shadow-lg: 0 10px 36px rgba(59,28,86,0.15), 0 4px 12px rgba(59,28,86,0.08);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--lilac);
+            min-height: 100vh;
+            color: var(--slate-800);
+        }
+
+        /* ─── TOPBAR ─── */
+        .topbar {
+            background: var(--purple);
+            padding: 12px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 12px rgba(59,28,86,0.35);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-logo {
+            height: 38px;
+            width: auto;
+            object-fit: contain;
+        }
+        .topbar-divider {
+            width: 1px;
+            height: 28px;
+            background: rgba(255,255,255,0.2);
+        }
+        .topbar-title {
+            color: var(--white);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .topbar-sub {
+            color: rgba(255,255,255,0.65);
+            font-size: 12px;
+            font-weight: 400;
+            margin-top: 1px;
+        }
+        .topbar-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .btn-ghost {
+            background: rgba(255,255,255,0.10);
+            color: var(--white);
+            border: 1px solid rgba(255,255,255,0.20);
+        }
+        .btn-ghost:hover {
+            background: rgba(255,255,255,0.20);
+            transform: translateY(-1px);
+        }
+        .btn-roster-direct {
+            background: var(--lemon);
+            color: var(--slate-900);
+            border: none;
+            box-shadow: 0 2px 8px rgba(132,204,22,0.25);
+            font-weight: 700;
+        }
+        .btn-roster-direct:hover {
+            background: var(--lemon-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(132,204,22,0.38);
+        }
+        .btn-purple {
+            background: var(--purple);
+            color: var(--white);
+            font-weight: 600;
+            width: 100%;
+            justify-content: center;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        .btn-purple:hover {
+            background: var(--purple-mid);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59,28,86,0.28);
+        }
+
+        /* ─── PAGE CONTAINER ─── */
+        .page-content {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 28px 24px 48px;
+        }
+
+        /* ─── HERO HEADER ─── */
+        .hero-card {
+            background: var(--purple);
+            border-radius: 20px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-card::after {
+            content: '';
+            position: absolute;
+            bottom: -60px;
+            right: 140px;
+            width: 160px;
+            height: 160px;
+            background: rgba(132,204,22,0.07);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        .hero-info {
+            position: relative;
+            z-index: 2;
+        }
+        .hero-eyebrow {
+            font-size: 11.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 6px;
+        }
+        .hero-title {
+            color: var(--white);
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+        .hero-desc {
+            color: rgba(255,255,255,0.8);
+            font-size: 13.5px;
+            font-weight: 400;
+            max-width: 580px;
+        }
+        .hero-quick-access {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        /* ─── QUICK LINK BANNER TO ALL STUDENTS ─── */
+        .direct-link-banner {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 16px 22px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 1.5px solid var(--purple-light);
+            border-left: 5px solid var(--lemon);
+        }
+        .direct-link-text {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .direct-link-icon {
+            font-size: 26px;
+        }
+        .direct-link-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--purple);
+            margin-bottom: 2px;
+        }
+        .direct-link-desc {
+            font-size: 12.5px;
+            color: var(--slate-600);
+        }
+
+        /* ─── SECTION CARDS ─── */
+        .card {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid rgba(59,28,86,0.06);
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--purple);
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--purple-light);
+        }
+
+        /* ─── FORM GRID ─── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--slate-600);
+        }
+        .form-control {
+            width: 100%;
+            background: var(--lilac);
+            border: 1.5px solid var(--slate-200);
+            border-radius: 10px;
+            padding: 11px 14px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--slate-800);
+            outline: none;
+            transition: all 0.18s ease;
+        }
+        .form-control:focus {
+            border-color: var(--purple-mid);
+            background: var(--white);
+            box-shadow: 0 0 0 3px rgba(92,45,145,0.12);
+        }
+
+        /* ─── WORKSPACES LIST (2-COLUMN GRID) ─── */
+        .workspaces-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .session-card-item {
+            background: var(--slate-100);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border-left: 4px solid var(--purple);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            transition: all 0.18s ease;
+        }
+        .session-card-item:hover {
+            transform: translateX(3px);
+            background: #EBE3F7;
+            border-left-color: var(--lemon-dark);
+            box-shadow: var(--shadow-sm);
+        }
+        .session-item-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--purple);
+            letter-spacing: -0.2px;
+        }
+        .session-item-meta {
+            font-size: 11.5px;
+            color: var(--slate-600);
+            margin-top: 3px;
+        }
+        .btn-workspace {
+            background: var(--purple);
+            color: var(--white);
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+        }
+        .session-card-item:hover .btn-workspace {
+            background: var(--purple-mid);
+            transform: translateY(-1px);
+        }
+
+        /* ─── EMPTY STATE ─── */
+        .empty-workspace-state {
+            padding: 36px 20px;
+            text-align: center;
+            color: var(--slate-400);
+            grid-column: span 2;
+        }
+
+        @media (max-width: 768px) {
+            .topbar {
+                padding: 12px 16px;
+            }
+            .page-content {
+                padding: 18px 14px 36px;
+            }
+            .hero-card {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 22px 20px;
+            }
+            .hero-quick-access {
+                align-items: flex-start;
+                width: 100%;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .workspaces-grid {
+                grid-template-columns: 1fr;
+            }
+            .direct-link-banner {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .empty-workspace-state {
+                grid-column: span 1;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <a href="/superadmin/dashboard">&larr; Back to Dashboard</a>
-        <h2>1. Create Academic Session</h2>
-        <form action="/superadmin/create-session" method="POST">
-            <div class="form-group">
-                <label>Select Session Preset</label>
-                <select id="sessionPreset" onchange="syncSessionInput(this.value)">
-                    <% for(let y = 2020; y <= 2031; y++) { 
-                        let optionVal = y + "/" + (y + 1);
-                    %>
-                        <option value="<%= optionVal %>" <%= optionVal === '2025/2026' ? 'selected' : '' %>><%= optionVal %></option>
-                    <% } %>
-                    <option value="custom">-- Type Custom Session --</option>
-                </select>
+
+    <!-- ─── TOPBAR ─── -->
+    <header class="topbar">
+        <img src="/img/tlmps_llogo_compressed_no_bg.png" alt="TLMPS Logo" class="topbar-logo"
+             onerror="this.src='/img/tlmps_llogo_compressed.jpg'">
+        <div class="topbar-divider"></div>
+        <div>
+            <div class="topbar-title">The Leaders Memorial Private School</div>
+            <div class="topbar-sub">Academic Session Management</div>
+        </div>
+        <div class="topbar-actions">
+            <!-- Direct Link to All Students Roster -->
+            <a href="/superadmin/all-students" class="btn btn-roster-direct" title="Browse central student directory">
+                👥 All Students Roster
+            </a>
+            <a href="/superadmin/dashboard" class="btn btn-ghost">
+                ← Dashboard
+            </a>
+        </div>
+    </header>
+
+    <main class="page-content">
+
+        <!-- ─── HERO HEADER CARD ─── -->
+        <section class="hero-card">
+            <div class="hero-info">
+                <div class="hero-eyebrow">Portal Administration</div>
+                <h1 class="hero-title">Manage Sessions & Terms</h1>
+                <p class="hero-desc">
+                    Configure school calendar sessions and launch dedicated workspaces for term management, student registrations, and score reports.
+                </p>
             </div>
-
-            <div class="form-group">
-                <label>Session Name (Format: YYYY/YYYY)</label>
-                <input type="text" id="session_name" name="session_name" value="2025/2026" pattern="^[0-9]{4}\/[0-9]{4}$" title="Enter a valid session like 2025/2026" required>
+            <div class="hero-quick-access">
+                <a href="/superadmin/all-students" class="btn btn-roster-direct">
+                    👥 Open All Students Roster →
+                </a>
             </div>
+        </section>
 
-            <button type="submit" class="btn">Create Session</button>
-        </form>
-    </div>
-
-    <div class="card">
-        <h2>2. Academic Session Workspaces</h2>
-        <% if (!sessions || sessions.length === 0) { %>
-            <p>No academic sessions have been created yet.</p>
-        <% } else { %>
-            <% sessions.slice().reverse().forEach(session => { %>
-                <div class="term-card">
-                    <strong><%= session.session_name %></strong>
-                    <a href="/superadmin/sessions/<%= session.session_id %>" style="float: right;">Open Workspace</a>
+        <!-- ─── PROMINENT ROUTE DISCOVERY BANNER ─── -->
+        <div class="direct-link-banner">
+            <div class="direct-link-text">
+                <span class="direct-link-icon">📚</span>
+                <div>
+                    <div class="direct-link-title">Looking for the All Students Roster?</div>
+                    <div class="direct-link-desc">View, search, edit, and print registration forms for all students across JSS1–SSS3.</div>
                 </div>
-            <% }); %>
-        <% } %>
-    </div>
+            </div>
+            <a href="/superadmin/all-students" class="btn btn-roster-direct">
+                Go to All Students Roster
+            </a>
+        </div>
+
+        <!-- ─── 1. CREATE ACADEMIC SESSION CARD ─── -->
+        <section class="card">
+            <h2 class="card-title">1. Create Academic Session</h2>
+            <form action="/superadmin/create-session" method="POST">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="sessionPreset">Select Session Preset</label>
+                        <select id="sessionPreset" class="form-control" onchange="syncSessionInput(this.value)">
+                            <% for(let y = 2020; y <= 2031; y++) { 
+                                let optionVal = y + "/" + (y + 1);
+                            %>
+                                <option value="<%= optionVal %>" <%= optionVal === '2025/2026' ? 'selected' : '' %>><%= optionVal %></option>
+                            <% } %>
+                            <option value="custom">-- Type Custom Session --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="session_name">Session Name (Format: YYYY/YYYY)</label>
+                        <input type="text" id="session_name" name="session_name" class="form-control" value="2025/2026" pattern="^[0-9]{4}\/[0-9]{4}$" title="Enter a valid session like 2025/2026" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-purple">
+                    ➕ Create Academic Session
+                </button>
+            </form>
+        </section>
+
+        <!-- ─── 2. ACADEMIC SESSION WORKSPACES CARD ─── -->
+        <section class="card">
+            <h2 class="card-title"><%= archived ? 'Archived Sessions (read-only unless reinstated)' : '2. Academic Session Workspaces' %></h2>
+            <p style="margin:0 0 14px;"><a href="/superadmin/sessions<%= archived ? '' : '?archived=1' %>"><%= archived ? 'View active sessions' : 'View archived sessions' %></a></p>
+            
+            <div class="workspaces-grid">
+                <% if (!sessions || sessions.length === 0) { %>
+                    <div class="empty-workspace-state">
+                        <p style="font-weight: 600; color: var(--slate-600); margin-bottom: 4px;">No academic sessions have been created yet.</p>
+                        <p style="font-size: 13px;">Use the form above to initialize your first academic session.</p>
+                    </div>
+                <% } else { %>
+                    <% sessions.slice().reverse().forEach(session => { %>
+                        <div class="session-card-item">
+                            <div>
+                                <div class="session-item-name"><%= session.session_name %></div>
+                                <div class="session-item-meta">Session Workspace #<%= session.session_id %></div>
+                            </div>
+                            <a href="/superadmin/sessions/<%= session.session_id %>" class="btn-workspace">Open Workspace →</a>
+                            <% if (archived) { %>
+                                <form method="POST" action="/superadmin/sessions/<%= session.session_id %>/reinstate" style="margin-left:8px;"><button type="submit" class="btn-workspace">Reinstate</button></form>
+                            <% } else { %>
+                                <form method="POST" action="/superadmin/sessions/<%= session.session_id %>/archive" style="margin-left:8px;" onsubmit="return confirm('Archive this session? It can be reinstated only if this session name is not recreated.');"><button type="submit" class="btn-workspace" style="background:#7f1d1d;">Archive</button></form>
+                            <% } %>
+                        </div>
+                    <% }); %>
+                <% } %>
+            </div>
+        </section>
+
+    </main>
 
     <script>
         function syncSessionInput(val) {

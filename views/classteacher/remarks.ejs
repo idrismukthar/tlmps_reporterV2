@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Term Remarks</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eef3f7; margin: 0; color: #20313b; }
+        .nav { background: #16425b; color: #fff; padding: 16px max(18px, calc((100% - 1200px) / 2)); display: flex; justify-content: space-between; }
+        .nav a { color: #fff; }
+        .wrap { max-width: 1200px; margin: auto; padding: 24px 18px; }
+        .config, .sheet { background: #fff; border: 1px solid #d8e2e8; border-radius: 8px; padding: 20px; margin-bottom: 18px; }
+        .config { display: grid; grid-template-columns: 1fr 1fr 2fr auto; gap: 12px; align-items: end; }
+        label { display: block; font-weight: bold; font-size: 13px; }
+        input, select, textarea, button { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #b8c5cd; border-radius: 4px; font: inherit; }
+        textarea { min-width: 220px; resize: vertical; }
+        button { background: #176b87; color: #fff; border: 0; font-weight: bold; cursor: pointer; }
+        .bulk { display: flex; gap: 8px; align-items: end; margin-bottom: 15px; }
+        .bulk > * { flex: 1; }
+        .bulk button { flex: 0 0 auto; width: auto; }
+        .table-scroll { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 1200px; }
+        th, td { padding: 10px; border-bottom: 1px solid #e4eaee; text-align: left; vertical-align: top; }
+        th { background: #f1f6f8; }
+        .number { width: 82px; }
+        .save { position: sticky; bottom: 14px; width: auto; padding: 13px 20px; box-shadow: 0 4px 12px #16425b40; }
+        .saved { background: #e6f7eb; color: #166534; padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        @media (max-width: 800px) { .config { grid-template-columns: 1fr 1fr; } .bulk { display: block; } .bulk > * { margin-top: 8px; } }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <strong><%= session.session_name %> | <%= term.term_name %> | <%= className.slice(0, 3) %> <%= className.slice(3) %></strong>
+        <a href="/classteacher/dashboard">Dashboard</a>
+    </nav>
+    <main class="wrap">
+        <h1>Attendance and term remarks</h1>
+        <% if (query && query.saved) { %><div class="saved">Class remarks saved successfully.</div><% } %>
+        <form method="POST" action="/classteacher/remarks/save" id="remarks-form">
+            <input type="hidden" name="session_id" value="<%= session.session_id %>">
+            <input type="hidden" name="term_id" value="<%= term.term_id %>">
+            <section class="config">
+                <div><label for="teacher_name">Class teacher name</label><input id="teacher_name" name="teacher_name" value="<%= students[0] ? students[0].teacher_name : '' %>" required></div>
+                <div><label for="days_opened">Days school opened</label><input id="days_opened" name="days_opened" type="number" min="0" value="<%= term.days_school_opened || 0 %>" required></div>
+                <div><label for="default_comment">Default comment</label><input id="default_comment" type="text" placeholder="Comment for rows with empty remarks"></div>
+                <button type="button" id="apply-comments">Apply to empty</button>
+            </section>
+            <section class="sheet">
+                <div class="bulk">
+                    <div><label for="bulk-rating">Set all character ratings</label><select id="bulk-rating"><option value="5">5 - Excellent</option><option value="4">4 - Very good</option><option value="3">3 - Good</option><option value="2">2 - Fair</option><option value="1">1 - Needs improvement</option></select></div>
+                    <button type="button" id="apply-ratings">Set all five ratings</button>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>Student</th><th>Days present</th><th>Days absent</th><th>Punctuality</th><th>Neatness</th><th>Obedience</th><th>Honesty</th><th>Discipline</th><th>Class teacher remark</th></tr></thead>
+                        <tbody>
+                            <% students.forEach((student, index) => { %>
+                                <tr data-admission-no="<%= student.admission_no %>">
+                                    <td><strong><%= student.admission_no %></strong><br><%= student.surname %>, <%= [student.middle_name, student.last_name].filter(Boolean).join(' ') %><input type="hidden" name="students[<%= index %>][admission_no]" value="<%= student.admission_no %>"></td>
+                                    <td><input class="number present" name="students[<%= index %>][days_present]" type="number" min="0" max="<%= term.days_school_opened || 0 %>" value="<%= student.days_present %>"></td>
+                                    <td><input class="number absent" type="number" value="<%= student.days_absent %>" readonly></td>
+                                    <% ["punctuality", "neatness", "obedience", "honesty", "discipline"].forEach((trait) => { %>
+                                        <td><input class="number trait-rating" name="students[<%= index %>][<%= trait %>]" type="number" min="1" max="5" value="<%= student[trait] || 5 %>"></td>
+                                    <% }) %>
+                                    <td><textarea name="students[<%= index %>][teacher_comment]" rows="2"><%= student.teacher_comment %></textarea></td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            <button class="save" type="submit">Save class remarks and attendance</button>
+        </form>
+    </main>
+    <script>
+        const form = document.getElementById("remarks-form");
+        const daysOpened = document.getElementById("days_opened");
+        const draftKey = `class-teacher-draft-${location.pathname}`;
+
+        function updateRows() {
+            document.querySelectorAll("tbody tr").forEach((row) => {
+                const present = row.querySelector(".present");
+                const absent = row.querySelector(".absent");
+                present.max = daysOpened.value;
+                present.value = Math.min(Number(daysOpened.value || 0), Math.max(0, Number(present.value) || 0));
+                absent.value = Math.max(0, Number(daysOpened.value || 0) - Number(present.value || 0));
+            });
+        }
+
+        function saveDraft() {
+            const values = {};
+            form.querySelectorAll("tbody tr").forEach((row) => {
+                values[row.dataset.admissionNo] = Array.from(row.querySelectorAll("input, textarea"))
+                    .filter((field) => !field.type || field.type !== "hidden")
+                    .map((field) => field.value);
+            });
+            values._teacherName = document.getElementById("teacher_name").value;
+            values._daysOpened = daysOpened.value;
+            values._defaultComment = document.getElementById("default_comment").value;
+            localStorage.setItem(draftKey, JSON.stringify(values));
+        }
+
+        function restoreDraft() {
+            const draft = JSON.parse(localStorage.getItem(draftKey) || "null");
+            if (!draft) return;
+            if (draft._teacherName !== undefined) document.getElementById("teacher_name").value = draft._teacherName;
+            if (draft._daysOpened !== undefined) daysOpened.value = draft._daysOpened;
+            if (draft._defaultComment !== undefined) document.getElementById("default_comment").value = draft._defaultComment;
+            document.querySelectorAll("tbody tr").forEach((row) => {
+                const values = draft[row.dataset.admissionNo];
+                if (!values) return;
+                row.querySelectorAll("input, textarea").forEach((field) => {
+                    if (field.type !== "hidden" && values.length) field.value = values.shift();
+                });
+            });
+            updateRows();
+        }
+
+        daysOpened.addEventListener("input", updateRows);
+        form.addEventListener("input", () => { updateRows(); saveDraft(); });
+        document.querySelectorAll('input[type="number"]').forEach((input) => input.addEventListener("wheel", (event) => event.preventDefault(), { passive: false }));
+        document.getElementById("apply-comments").addEventListener("click", () => {
+            const comment = document.getElementById("default_comment").value.trim();
+            if (!comment) return;
+            document.querySelectorAll("textarea").forEach((field) => { if (!field.value.trim()) field.value = comment; });
+            saveDraft();
+        });
+        document.getElementById("apply-ratings").addEventListener("click", () => {
+            const rating = document.getElementById("bulk-rating").value;
+            document.querySelectorAll(".trait-rating").forEach((field) => { field.value = rating; });
+            saveDraft();
+        });
+        form.addEventListener("submit", () => localStorage.removeItem(draftKey));
+        restoreDraft();
+        updateRows();
+    </script>
+</body>
+</html>

@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
+const rateLimit = require("./middleware/rate-limit");
 
 const app = express();
 
@@ -9,6 +10,13 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 180 });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+app.use((req, res, next) => {
+  if (req.method !== "POST") return next();
+  if (/\/(login|forgot-password|reset-password)$/.test(req.path)) return loginLimiter(req, res, next);
+  return writeLimiter(req, res, next);
+});
 
 // 2. View Engine Setup
 app.set("view engine", "ejs");
@@ -29,6 +37,9 @@ app.use("/superadmin", superadminRoutes);
 
 const teacherRoutes = require("./routes/teacher");
 app.use("/teacher", teacherRoutes);
+
+const classTeacherRoutes = require("./routes/classteacher");
+app.use("/classteacher", classTeacherRoutes);
 
 const studentRoutes = require("./routes/student");
 app.use("/", studentRoutes);
@@ -62,6 +73,7 @@ app.listen(PORT, () => {
   console.log(`  Superadmin Dashboard: ${baseUrl}/superadmin/dashboard`);
   console.log(`  Teacher Login:        ${baseUrl}/teacher/login`);
   console.log(`  Class Teacher Portal: ${baseUrl}/teacher/dashboard`);
+  console.log(`  Class Teacher Remarks: ${baseUrl}/classteacher/dashboard`);
   console.log(`  Subject Admin Login:  ${baseUrl}/admin/login`);
   console.log(`  Subject Admin Scores: ${baseUrl}/admin/scores\n`);
 });

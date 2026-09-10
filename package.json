@@ -4,7 +4,8 @@
   "description": "TLMPS School Portal",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "node tests/studentPerformance.test.js && node tests/promotion.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",
