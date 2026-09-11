@@ -1,9 +1,14 @@
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
+const fs = require("fs");
 
-const dbPath = process.env.DB_PATH
-  ? path.resolve(process.env.DB_PATH)
-  : path.resolve(__dirname, "../tlmps.db");
+const bundledDbPath = path.resolve(__dirname, "../tlmps.db");
+const dbPath = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : bundledDbPath;
+
+if (dbPath !== bundledDbPath && !fs.existsSync(dbPath) && fs.existsSync(bundledDbPath)) {
+  fs.copyFileSync(bundledDbPath, dbPath);
+}
+
 const db = new sqlite3.Database(dbPath);
 
 db.serialize(() => {

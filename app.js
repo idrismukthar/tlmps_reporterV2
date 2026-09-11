@@ -15,6 +15,16 @@ const uploadDirectory = process.env.UPLOAD_DIR
   : path.join(__dirname, "public/uploads");
 fs.mkdirSync(sessionDirectory, { recursive: true });
 fs.mkdirSync(uploadDirectory, { recursive: true });
+const bundledUploadDirectory = path.join(__dirname, "public/uploads");
+if (uploadDirectory !== bundledUploadDirectory && fs.existsSync(bundledUploadDirectory)) {
+  for (const fileName of fs.readdirSync(bundledUploadDirectory)) {
+    const sourcePath = path.join(bundledUploadDirectory, fileName);
+    const targetPath = path.join(uploadDirectory, fileName);
+    if (fs.statSync(sourcePath).isFile() && !fs.existsSync(targetPath)) {
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+  }
+}
 
 // 1. Core Middleware
 app.use(express.urlencoded({ extended: true }));
