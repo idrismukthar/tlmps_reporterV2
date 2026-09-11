@@ -299,10 +299,10 @@ router.get("/dashboard", (req, res) => {
       );
       if (!student || !enrollment) return res.status(404).send("Report card not found");
       const scores = await allRows(
-        `SELECT sub.subject_id, sub.subject_name, COALESCE(sc.ca_score, 0) AS ca_score,
+        `SELECT sub.subject_id, sub.subject_name, sub.unit_weight, COALESCE(sc.ca_score, 0) AS ca_score,
                 COALESCE(sc.mcq_score, 0) AS mcq_score,
                 COALESCE(sc.theory_score, 0) AS theory_score,
-                COALESCE(sc.total_score, 0) AS total_score
+                COALESCE(sc.total_score, 0) AS total_score, sc.score_id
          FROM student_subject_selections ss
          JOIN subjects sub ON sub.subject_id = ss.subject_id
          LEFT JOIN student_scores sc ON sc.admission_no = ss.admission_no
@@ -311,6 +311,57 @@ router.get("/dashboard", (req, res) => {
          ORDER BY sub.subject_name ASC`,
         [sessionId, termId, admissionNo, sessionId],
       );
+      const classRows = await allRows(
+        `SELECT e.admission_no, ss.subject_id, COALESCE(sc.total_score, 0) AS total_score
+         FROM academic_session_enrollments e
+         JOIN student_subject_selections ss
+           ON ss.admission_no = e.admission_no
+          AND (ss.session_id = e.session_id OR ss.session_id IS NULL)
+         LEFT JOIN student_scores sc
+           ON sc.admission_no = e.admission_no AND sc.session_id = ?
+          AND sc.term_id = ? AND sc.subject_id = ss.subject_id
+         WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'`,
+        [sessionId, termId, sessionId, enrollment.class_name],
+      );
+      const subjectRankRows = new Map();
+      const studentTotals = new Map();
+      classRows.forEach((row) => {
+        if (!subjectRankRows.has(row.subject_id)) subjectRankRows.set(row.subject_id, []);
+        subjectRankRows.get(row.subject_id).push(row);
+        if (!studentTotals.has(row.admission_no)) {
+          studentTotals.set(row.admission_no, { total: 0, subjects: 0 });
+        }
+        const total = Number(row.total_score || 0);
+        studentTotals.get(row.admission_no).total += total;
+        studentTotals.get(row.admission_no).subjects += 1;
+      });
+      const rankBySubject = new Map();
+      subjectRankRows.forEach((rows, subjectId) => {
+        const ordered = rows.slice().sort((left, right) =>
+          Number(right.total_score) - Number(left.total_score),
+        );
+        const ranks = new Map();
+        ordered.forEach((row, index) => {
+          const previous = ordered[index - 1];
+          ranks.set(
+            row.admission_no,
+            previous && Number(previous.total_score) === Number(row.total_score)
+              ? ranks.get(previous.admission_no)
+              : index + 1,
+          );
+        });
+        rankBySubject.set(subjectId, ranks);
+      });
+      const orderedStudents = Array.from(studentTotals.entries()).sort(
+        (left, right) =>
+          right[1].total / (right[1].subjects || 1) -
+            left[1].total / (left[1].subjects || 1) ||
+          left[0].localeCompare(right[0]),
+      );
+      let classPosition = "-";
+      orderedStudents.forEach((entry, index) => {
+        if (entry[0] === admissionNo) classPosition = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : index === 2 ? "rd" : "th"}`;
+      });
       const visibleStudent = exposeIdentifiers({
         ...student,
         Name: [student.surname, student.middle_name, student.last_name].filter(Boolean).join(" "),
@@ -323,7 +374,11 @@ router.get("/dashboard", (req, res) => {
         ...score,
         subject: score.subject_name,
         exam_score: Number(score.mcq_score || 0) + Number(score.theory_score || 0),
-        rank: "-",
+        rank: (() => {
+          const rank = rankBySubject.get(score.subject_id)?.get(admissionNo);
+          if (!rank) return "-";
+          return `${rank}${rank === 1 ? "st" : rank === 2 ? "nd" : rank === 3 ? "rd" : "th"}`;
+        })(),
       }));
       const grandTotal = reportScores.reduce(
         (total, score) => total + Number(score.total_score || 0),
@@ -333,6 +388,43 @@ router.get("/dashboard", (req, res) => {
       const currentAvg = totalSubjects
         ? ((grandTotal / (totalSubjects * 100)) * 100).toFixed(1)
         : "0.0";
+      const historyRows = await allRows(
+        `SELECT t.term_name, t.term_number, sc.total_score, sc.score_id, sub.unit_weight
+         FROM academic_terms t
+         JOIN student_subject_selections ss ON ss.admission_no = ? AND (ss.session_id = ? OR ss.session_id IS NULL)
+         JOIN subjects sub ON sub.subject_id = ss.subject_id
+         LEFT JOIN student_scores sc ON sc.admission_no = ? AND sc.session_id = ?
+          AND sc.term_id = t.term_id AND sc.subject_id = ss.subject_id
+         WHERE t.session_id = ? ORDER BY t.term_number ASC`,
+        [admissionNo, sessionId, admissionNo, sessionId, sessionId],
+      );
+      const termAverages = new Map();
+      historyRows.forEach((row) => {
+        if (row.score_id == null) return;
+        if (!termAverages.has(row.term_name)) termAverages.set(row.term_name, []);
+        termAverages.get(row.term_name).push(Number(row.total_score || 0));
+      });
+      const averageFor = (name) => {
+        const values = termAverages.get(name) || [];
+        return values.length
+          ? (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1)
+          : "0.0";
+      };
+      const firstTermAverage = averageFor("First Term");
+      const secondTermAverage = averageFor("Second Term");
+      const currentTermAverage = averageFor(enrollment.term_name);
+      const averageValues = Array.from(termAverages.values()).filter(Boolean).flat();
+      const cumulativeAvg = averageValues.length
+        ? (averageValues.reduce((sum, value) => sum + value, 0) / averageValues.length).toFixed(1)
+        : currentAvg;
+      const promotionAverage = Number(cumulativeAvg);
+      const promoMsg = /third term/i.test(enrollment.term_name) && promotionAverage >= 51
+        ? (/JSS3/i.test(enrollment.class_name)
+          ? "Congratulations on finishing Junior Secondary School! You have been promoted to SSS1"
+          : /SSS3/i.test(enrollment.class_name)
+            ? "Congratulations on completing Secondary School! You have successfully completed your Secondary Education."
+            : `Congratulations! You have been promoted to the next class`)
+        : null;
       const attendance = await getRow(
         `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened,
                 COUNT(DISTINCT CASE WHEN r.status = 'P' THEN r.attendance_date END) AS days_present,
@@ -355,13 +447,13 @@ router.get("/dashboard", (req, res) => {
         grandTotal,
         totalSubjects,
         currentAvg,
-        t1Avg: currentAvg,
-        t2Avg: currentAvg,
-        cumulativeAvg: currentAvg,
+        t1Avg: firstTermAverage,
+        t2Avg: secondTermAverage,
+        cumulativeAvg,
         gpa: null,
         cgpa: null,
-        position: "-",
-        promoMsg: null,
+        position: classPosition,
+        promoMsg,
         resultStatus: null,
         finalPrincipalRemark: "Keep working hard and continue to improve.",
         extra: {
