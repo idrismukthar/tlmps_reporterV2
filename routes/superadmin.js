@@ -8,6 +8,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const nigeriaStates = require("../static/states.json");
+const studentRoutes = require("./student");
 
 // Auth Protection
 const requireAuth = (req, res, next) => {
@@ -359,8 +360,12 @@ router.get("/dashboard", (req, res) => {
           left[0].localeCompare(right[0]),
       );
       let classPosition = "-";
+      let classPositionNumber = 0;
       orderedStudents.forEach((entry, index) => {
-        if (entry[0] === admissionNo) classPosition = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : index === 2 ? "rd" : "th"}`;
+        if (entry[0] === admissionNo) {
+          classPositionNumber = index + 1;
+          classPosition = `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : index === 2 ? "rd" : "th"}`;
+        }
       });
       const visibleStudent = exposeIdentifiers({
         ...student,
@@ -425,6 +430,15 @@ router.get("/dashboard", (req, res) => {
             ? "Congratulations on completing Secondary School! You have successfully completed your Secondary Education."
             : `Congratulations! You have been promoted to the next class`)
         : null;
+      const weakSubjects = reportScores
+        .filter((score) => Number(score.total_score || 0) <= 50)
+        .map((score) => score.subject_name || score.subject);
+      const finalPrincipalRemark = studentRoutes.buildPrincipalRemark(
+        currentAvg,
+        classPositionNumber,
+        weakSubjects,
+        admissionNo,
+      );
       const attendance = await getRow(
         `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened,
                 COUNT(DISTINCT CASE WHEN r.status = 'P' THEN r.attendance_date END) AS days_present,
@@ -455,7 +469,7 @@ router.get("/dashboard", (req, res) => {
         position: classPosition,
         promoMsg,
         resultStatus: null,
-        finalPrincipalRemark: "Keep working hard and continue to improve.",
+        finalPrincipalRemark,
         extra: {
           days_opened: attendance?.days_opened || "",
           days_present: attendance?.days_present || "",

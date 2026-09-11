@@ -1048,5 +1048,6 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
 });
 
 router.buildSessionPerformance = buildSessionPerformance;
+router.buildPrincipalRemark = buildPrincipalRemark;
 
 module.exports = router;
