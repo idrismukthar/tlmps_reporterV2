@@ -3,11 +3,13 @@ services:
     name: tlmps-portal
     runtime: node
     plan: free
-    buildCommand: npm ci
+    buildCommand: npm ci && npm rebuild sqlite3 --build-from-source
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 20.19.1
       - key: SESSION_SECRET
         generateValue: true
