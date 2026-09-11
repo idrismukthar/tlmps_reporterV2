@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><%= term.session_name %> - <%= term.term_name %></title>
+<head><link rel="icon" type="image/x-icon" href="/favicon.ico"><link rel="manifest" href="/site.webmanifest"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title><%= term.session_name %> - <%= term.term_name %></title>
 <style>body{font-family:Arial,sans-serif;background:#f4f0fa;color:#1e1b26;margin:0}.top{background:#3b1c56;color:#fff;padding:20px 6%;display:flex;justify-content:space-between;align-items:center}.top a{color:#fff}.term-heading{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.days-opened{background:#fff;color:#3b1c56;border-radius:8px;padding:9px 13px;font-weight:800}.wrap{max-width:1000px;margin:35px auto;padding:0 20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}.card{background:#fff;border-radius:12px;padding:22px;border:1px solid #e2d4f0}.card a{display:block;background:#84cc16;color:#3b1c56;text-decoration:none;text-align:center;padding:11px;border-radius:7px;font-weight:bold;margin-top:18px}</style>
 </head>
 <body><header class="top"><div class="term-heading"><strong><%= term.session_name %> / <%= term.term_name %></strong><span class="days-opened">Days Opened: <%= typeof daysOpened === "undefined" ? 0 : daysOpened %></span></div><a href="/superadmin/attendance/<%= term.session_id %>">← Terms</a></header>
