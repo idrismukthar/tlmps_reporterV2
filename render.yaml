@@ -3,7 +3,7 @@ services:
     name: tlmps-portal
     runtime: node
     plan: free
-    buildCommand: npm ci && npm rebuild sqlite3 --build-from-source
+    buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /health
     envVars:
