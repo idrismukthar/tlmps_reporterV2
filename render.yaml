@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: tlmps-portal
+    runtime: node
+    plan: starter
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /var/data/tlmps.db
+      - key: SESSION_DIR
+        value: /var/data
+      - key: UPLOAD_DIR
+        value: /var/data/uploads
+    disk:
+      name: tlmps-data
+      mountPath: /var/data
+      sizeGB: 1

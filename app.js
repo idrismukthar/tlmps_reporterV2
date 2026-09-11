@@ -1,15 +1,26 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
+const fs = require("fs");
 const session = require("express-session");
+const SQLiteStore = require("connect-sqlite3")(session);
 const rateLimit = require("./middleware/rate-limit");
 
 const app = express();
+const sessionDirectory = process.env.SESSION_DIR
+  ? path.resolve(process.env.SESSION_DIR)
+  : path.join(__dirname, "data");
+const uploadDirectory = process.env.UPLOAD_DIR
+  ? path.resolve(process.env.UPLOAD_DIR)
+  : path.join(__dirname, "public/uploads");
+fs.mkdirSync(sessionDirectory, { recursive: true });
+fs.mkdirSync(uploadDirectory, { recursive: true });
 
 // 1. Core Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+app.use("/uploads", express.static(uploadDirectory));
 const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 180 });
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
 app.use((req, res, next) => {
@@ -23,11 +34,23 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 // 3. Session Setup
+app.set("trust proxy", 1);
 app.use(
   session({
     secret: process.env.SESSION_SECRET || "tlmps_secret_key_2026",
     resave: false,
     saveUninitialized: false,
+    store: new SQLiteStore({
+      db: "sessions.sqlite",
+      dir: sessionDirectory,
+      concurrentDB: true,
+    }),
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
   }),
 );
 
@@ -64,6 +87,9 @@ app.get("/homepage", (req, res) => {
 
 // 6. Server Initialization
 const PORT = process.env.PORT || 3000;
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 app.listen(PORT, () => {
   const baseUrl = `http://localhost:${PORT}`;
   console.log(`\nTLMPS Academic Portal is running at ${baseUrl}\n`);

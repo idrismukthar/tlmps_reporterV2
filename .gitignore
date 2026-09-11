@@ -8,6 +8,7 @@ tlmps.db
 *.db
 *.sqlite
 *.sqlite3
+data/
 
 # Dependencies
 node_modules/
