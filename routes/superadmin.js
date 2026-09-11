@@ -290,7 +290,7 @@ router.get("/dashboard", (req, res) => {
       const { sessionId, termId, admissionNo } = req.params;
       const student = await getRow(`SELECT * FROM students WHERE admission_no = ?`, [admissionNo]);
       const enrollment = await getRow(
-        `SELECT e.class_name, a.session_name, t.term_name
+        `SELECT e.class_name, a.session_name, t.term_name, t.next_term_resumes
          FROM academic_session_enrollments e
          JOIN academic_sessions a ON a.session_id = e.session_id
          JOIN academic_terms t ON t.session_id = a.session_id AND t.term_id = ?
@@ -299,7 +299,7 @@ router.get("/dashboard", (req, res) => {
       );
       if (!student || !enrollment) return res.status(404).send("Report card not found");
       const scores = await allRows(
-        `SELECT sub.subject_name, COALESCE(sc.ca_score, 0) AS ca_score,
+        `SELECT sub.subject_id, sub.subject_name, COALESCE(sc.ca_score, 0) AS ca_score,
                 COALESCE(sc.mcq_score, 0) AS mcq_score,
                 COALESCE(sc.theory_score, 0) AS theory_score,
                 COALESCE(sc.total_score, 0) AS total_score
@@ -311,28 +311,75 @@ router.get("/dashboard", (req, res) => {
          ORDER BY sub.subject_name ASC`,
         [sessionId, termId, admissionNo, sessionId],
       );
-      const report = {
-        student: exposeIdentifiers(student),
-        enrollment,
-        scores,
-        total: scores.reduce((sum, score) => sum + Number(score.total_score || 0), 0),
-      };
-      if (req.query.download === "1") {
-        const doc = new PDFDocument({ margin: 40, size: "A4" });
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename="report-${admissionNo}-${termId}.pdf"`);
-        doc.pipe(res);
-        doc.fontSize(18).text("The Leaders Memorial Private School", { align: "center" });
-        doc.moveDown().fontSize(14).text("Student Report Card", { align: "center" });
-        doc.moveDown().fontSize(11).text(`Name: ${student.surname} ${student.middle_name || ""} ${student.last_name || ""}`);
-        doc.text(`Admission No: ${admissionNo}`);
-        doc.text(`Class: ${enrollment.class_name} | ${enrollment.session_name} | ${enrollment.term_name}`);
-        doc.moveDown();
-        scores.forEach((score) => doc.text(`${score.subject_name}: ${score.total_score}`));
-        doc.moveDown().font("Helvetica-Bold").text(`Total: ${report.total}`);
-        return doc.end();
-      }
-      res.render("superadmin/total_data_analytics/report-card", report);
+      const visibleStudent = exposeIdentifiers({
+        ...student,
+        Name: [student.surname, student.middle_name, student.last_name].filter(Boolean).join(" "),
+        Admission_no: student.admission_no,
+        Class: enrollment.class_name,
+        Sex: student.gender,
+        Passport: student.passport_url,
+      });
+      const reportScores = scores.map((score) => ({
+        ...score,
+        subject: score.subject_name,
+        exam_score: Number(score.mcq_score || 0) + Number(score.theory_score || 0),
+        rank: "-",
+      }));
+      const grandTotal = reportScores.reduce(
+        (total, score) => total + Number(score.total_score || 0),
+        0,
+      );
+      const totalSubjects = reportScores.length;
+      const currentAvg = totalSubjects
+        ? ((grandTotal / (totalSubjects * 100)) * 100).toFixed(1)
+        : "0.0";
+      const attendance = await getRow(
+        `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened,
+                COUNT(DISTINCT CASE WHEN r.status = 'P' THEN r.attendance_date END) AS days_present,
+                COUNT(DISTINCT CASE WHEN r.status = 'A' THEN r.attendance_date END) AS days_absent
+         FROM attendance_records r
+         LEFT JOIN attendance_days d
+           ON d.term_id = r.term_id AND d.attendance_date = r.attendance_date
+         WHERE r.term_id = ? AND r.admission_no = ? AND COALESCE(d.is_holiday, 0) = 0`,
+        [termId, admissionNo],
+      );
+      const remarks = await getRow(
+        `SELECT * FROM class_teacher_remarks WHERE admission_no = ? AND session_id = ? AND term_id = ?`,
+        [admissionNo, sessionId, termId],
+      );
+      return res.render("student/dashboard", {
+        student: visibleStudent,
+        session: enrollment.session_name,
+        term: enrollment.term_name,
+        scores: reportScores,
+        grandTotal,
+        totalSubjects,
+        currentAvg,
+        t1Avg: currentAvg,
+        t2Avg: currentAvg,
+        cumulativeAvg: currentAvg,
+        gpa: null,
+        cgpa: null,
+        position: "-",
+        promoMsg: null,
+        resultStatus: null,
+        finalPrincipalRemark: "Keep working hard and continue to improve.",
+        extra: {
+          days_opened: attendance?.days_opened || "",
+          days_present: attendance?.days_present || "",
+          days_absent: attendance?.days_absent || "",
+          reason: "",
+          next_term: enrollment.next_term_resumes || "",
+          teacher_comment: remarks?.teacher_comment || "",
+          teacher_name: remarks?.teacher_name || "",
+          conduct_rating: remarks?.conduct_rating || 5,
+          punctuality: remarks?.punctuality || "",
+          neatness: remarks?.neatness || "",
+          obedience: remarks?.obedience || "",
+          honesty: remarks?.honesty || "",
+          discipline: remarks?.discipline || "",
+        },
+      });
     } catch (error) {
       res.status(500).send(`Unable to load report card: ${error.message}`);
     }
