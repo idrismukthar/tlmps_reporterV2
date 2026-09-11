@@ -132,6 +132,22 @@ const exposeIdentifiers = (student) => ({
   lassra: decryptIdentifier(student.lassra_encrypted),
 });
 
+const allRows = (query, params = []) =>
+  new Promise((resolve, reject) => {
+    db.all(query, params, (error, rows) => (error ? reject(error) : resolve(rows || [])));
+  });
+
+const getRow = (query, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(query, params, (error, row) => (error ? reject(error) : resolve(row || null)));
+  });
+
+const analyticsSessionName = (value) =>
+  value === "2025_and_2026" ? "2025/2026" : "2026/2027";
+
+const analyticsTermName = (value) =>
+  String(value || "First_term").replace(/_/g, " ");
+
 router.get("/login", (req, res) =>
   res.render("superadmin/login", { error: null }),
 );
@@ -154,6 +170,172 @@ router.use(requireAuth);
 router.get("/dashboard", (req, res) => {
   db.all(`SELECT * FROM academic_sessions`, [], (err, sessions) => {
     res.render("superadmin/dashboard", { sessions: sessions || [] });
+  });
+
+  router.get("/analytics", async (req, res) => {
+    try {
+      const session = req.query.session || "2026_and_2027";
+      const term = req.query.term || "First_term";
+      const filterClass = req.query.class || "";
+      const sessionName = analyticsSessionName(session);
+      const termName = analyticsTermName(term);
+      const classCondition =
+        filterClass === "JUNIOR"
+          ? "AND e.class_name LIKE 'JSS%'"
+          : filterClass === "SENIOR"
+            ? "AND e.class_name LIKE 'SSS%'"
+            : filterClass
+              ? "AND e.class_name = ?"
+              : "";
+      const params = [sessionName, termName];
+      if (filterClass && !["JUNIOR", "SENIOR"].includes(filterClass))
+        params.push(filterClass);
+      const rows = await allRows(
+        `SELECT e.class_name, s.admission_no,
+                TRIM(s.surname || ' ' || COALESCE(s.middle_name, '') || ' ' || COALESCE(s.last_name, '')) AS name,
+                COALESCE(AVG(sc.total_score), 0) AS average
+         FROM academic_sessions a
+         JOIN academic_terms t ON t.session_id = a.session_id AND LOWER(t.term_name) = LOWER(?)
+         JOIN academic_session_enrollments e ON e.session_id = a.session_id AND e.enrollment_status = 'Enrolled'
+         JOIN students s ON s.admission_no = e.admission_no
+         LEFT JOIN student_scores sc ON sc.admission_no = e.admission_no
+           AND sc.session_id = a.session_id AND sc.term_id = t.term_id
+         WHERE a.session_name = ? ${classCondition}
+         GROUP BY e.class_name, s.admission_no, s.surname, s.middle_name, s.last_name
+         ORDER BY average DESC, name ASC`,
+        [termName, sessionName, ...params.slice(2)],
+      );
+      const classAverages = {};
+      rows.forEach((row) => {
+        if (!classAverages[row.class_name]) classAverages[row.class_name] = [];
+        classAverages[row.class_name].push(Number(row.average));
+      });
+      Object.keys(classAverages).forEach((className) => {
+        const values = classAverages[className];
+        classAverages[className] =
+          values.reduce((total, value) => total + value, 0) / values.length;
+      });
+      const stats = {
+        totalStudents: rows.length,
+        topStudents: rows.slice(0, 10).map((row) => ({
+          name: row.name,
+          class: row.class_name,
+          average: Number(row.average),
+        })),
+        worstStudents: rows.slice().sort((a, b) => Number(a.average) - Number(b.average)).slice(0, 10).map((row) => ({
+          name: row.name,
+          class: row.class_name,
+          average: Number(row.average),
+        })),
+        classAverages,
+        subjectStats: {},
+      };
+      const subjectRows = await allRows(
+        `SELECT sub.subject_name,
+                SUM(CASE WHEN sc.total_score >= 50 THEN 1 ELSE 0 END) AS passed,
+                SUM(CASE WHEN sc.total_score < 50 THEN 1 ELSE 0 END) AS failed
+         FROM academic_sessions a
+         JOIN academic_terms t ON t.session_id = a.session_id AND LOWER(t.term_name) = LOWER(?)
+         JOIN academic_session_enrollments e ON e.session_id = a.session_id AND e.enrollment_status = 'Enrolled'
+         JOIN student_subject_selections ss ON ss.admission_no = e.admission_no
+           AND (ss.session_id = e.session_id OR ss.session_id IS NULL)
+         JOIN subjects sub ON sub.subject_id = ss.subject_id
+         LEFT JOIN student_scores sc ON sc.admission_no = e.admission_no
+           AND sc.session_id = a.session_id AND sc.term_id = t.term_id AND sc.subject_id = sub.subject_id
+         WHERE a.session_name = ? ${classCondition}
+         GROUP BY sub.subject_id, sub.subject_name`,
+        [termName, sessionName, ...params.slice(2)],
+      );
+      subjectRows.forEach((row) => {
+        stats.subjectStats[row.subject_name] = {
+          passed: Number(row.passed || 0),
+          failed: Number(row.failed || 0),
+        };
+      });
+      res.render("superadmin/total_data_analytics/super_admin_view_dashboard", {
+        session, term, filterClass, stats,
+      });
+    } catch (error) {
+      res.status(500).send(`Unable to load analytics: ${error.message}`);
+    }
+  });
+
+  router.get("/analytics/results", async (req, res) => {
+    try {
+      const session = req.query.session || "2026_and_2027";
+      const term = req.query.term || "First_term";
+      const className = req.query.class || "JSS1";
+      const students = await allRows(
+        `SELECT s.admission_no, s.surname, s.middle_name AS m_name, s.last_name AS l_name, s.gender,
+                a.session_id, t.term_id
+         FROM academic_sessions a
+         JOIN academic_terms t ON t.session_id = a.session_id AND LOWER(t.term_name) = LOWER(?)
+         JOIN academic_session_enrollments e ON e.session_id = a.session_id
+           AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
+         JOIN students s ON s.admission_no = e.admission_no
+         WHERE a.session_name = ?
+         ORDER BY s.gender DESC, s.surname ASC, s.middle_name ASC, s.last_name ASC`,
+        [analyticsTermName(term), className, analyticsSessionName(session)],
+      );
+      res.render("superadmin/total_data_analytics/super_admin_view_results", {
+        session, term, className, students,
+      });
+    } catch (error) {
+      res.status(500).send(`Unable to load result list: ${error.message}`);
+    }
+  });
+
+  router.get("/analytics/report/:sessionId/:termId/:admissionNo", async (req, res) => {
+    try {
+      const { sessionId, termId, admissionNo } = req.params;
+      const student = await getRow(`SELECT * FROM students WHERE admission_no = ?`, [admissionNo]);
+      const enrollment = await getRow(
+        `SELECT e.class_name, a.session_name, t.term_name
+         FROM academic_session_enrollments e
+         JOIN academic_sessions a ON a.session_id = e.session_id
+         JOIN academic_terms t ON t.session_id = a.session_id AND t.term_id = ?
+         WHERE e.session_id = ? AND e.admission_no = ?`,
+        [termId, sessionId, admissionNo],
+      );
+      if (!student || !enrollment) return res.status(404).send("Report card not found");
+      const scores = await allRows(
+        `SELECT sub.subject_name, COALESCE(sc.ca_score, 0) AS ca_score,
+                COALESCE(sc.mcq_score, 0) AS mcq_score,
+                COALESCE(sc.theory_score, 0) AS theory_score,
+                COALESCE(sc.total_score, 0) AS total_score
+         FROM student_subject_selections ss
+         JOIN subjects sub ON sub.subject_id = ss.subject_id
+         LEFT JOIN student_scores sc ON sc.admission_no = ss.admission_no
+           AND sc.session_id = ? AND sc.term_id = ? AND sc.subject_id = ss.subject_id
+         WHERE ss.admission_no = ? AND (ss.session_id = ? OR ss.session_id IS NULL)
+         ORDER BY sub.subject_name ASC`,
+        [sessionId, termId, admissionNo, sessionId],
+      );
+      const report = {
+        student: exposeIdentifiers(student),
+        enrollment,
+        scores,
+        total: scores.reduce((sum, score) => sum + Number(score.total_score || 0), 0),
+      };
+      if (req.query.download === "1") {
+        const doc = new PDFDocument({ margin: 40, size: "A4" });
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="report-${admissionNo}-${termId}.pdf"`);
+        doc.pipe(res);
+        doc.fontSize(18).text("The Leaders Memorial Private School", { align: "center" });
+        doc.moveDown().fontSize(14).text("Student Report Card", { align: "center" });
+        doc.moveDown().fontSize(11).text(`Name: ${student.surname} ${student.middle_name || ""} ${student.last_name || ""}`);
+        doc.text(`Admission No: ${admissionNo}`);
+        doc.text(`Class: ${enrollment.class_name} | ${enrollment.session_name} | ${enrollment.term_name}`);
+        doc.moveDown();
+        scores.forEach((score) => doc.text(`${score.subject_name}: ${score.total_score}`));
+        doc.moveDown().font("Helvetica-Bold").text(`Total: ${report.total}`);
+        return doc.end();
+      }
+      res.render("superadmin/total_data_analytics/report-card", report);
+    } catch (error) {
+      res.status(500).send(`Unable to load report card: ${error.message}`);
+    }
   });
 });
 

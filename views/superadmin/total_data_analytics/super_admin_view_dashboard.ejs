@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Control Tower | Admin Dashboard</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --primary: #8b5cf6;
+            --primary-hover: #7c3aed;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+        body {
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        /* Glassmorphism utility */
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Header */
+        .admin-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 30px; margin-bottom: 30px;
+        }
+        .logo-area { display: flex; align-items: center; gap: 20px; }
+        .logo-area img { height: 50px; border-radius: 8px; }
+        .logo-area h1 { font-size: 28px; font-weight: 700; margin: 0; letter-spacing: 1px; }
+        .logo-area span { color: var(--primary); }
+        
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.1); color: var(--danger); text-decoration: none;
+            padding: 10px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; 
+            transition: all 0.3s ease; border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        .logout-btn:hover { background: var(--danger); color: white; transform: translateY(-2px); }
+
+        /* Filters */
+        .filter-bar {
+            padding: 20px; display: flex; gap: 20px; margin-bottom: 30px; align-items: center; flex-wrap: wrap;
+        }
+        select, button {
+            background: rgba(15, 23, 42, 0.6); color: white; border: 1px solid var(--card-border);
+            padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: 0.2s;
+        }
+        select:focus { border-color: var(--primary); }
+        button.apply-btn { 
+            background: var(--primary); border: none; font-weight: 600; cursor: pointer; 
+            padding: 12px 24px; box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.39);
+        }
+        button.apply-btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px; margin-bottom: 30px;
+        }
+        .stat-card {
+            padding: 30px; text-align: left; position: relative; overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+            background: var(--primary);
+        }
+        .stat-card.accent-green::before { background: var(--accent); }
+        .stat-card h3 { font-size: 42px; margin: 15px 0 0 0; font-weight: 800; }
+        .stat-card p { color: var(--text-muted); font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+
+        /* Charts */
+        .charts-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;
+        }
+        .chart-card {
+            padding: 24px; height: 400px; display: flex; flex-direction: column;
+        }
+        .chart-wrapper { flex: 1; position: relative; }
+        h4.card-title { 
+            margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: white; 
+            display: flex; align-items: center; gap: 10px;
+        }
+
+        /* Tables Grid */
+        .tables-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;
+        }
+        .table-card { padding: 24px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; color: var(--text-muted); font-size: 13px; font-weight: 600; padding: 15px 10px; border-bottom: 1px solid var(--card-border); text-transform: uppercase; }
+        td { padding: 15px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 14px; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        
+        .score-badge { 
+            background: rgba(16, 185, 129, 0.2); color: var(--accent); 
+            padding: 6px 12px; border-radius: 20px; font-weight: 700; font-size: 13px;
+        }
+        .score-badge.danger {
+            background: rgba(239, 68, 68, 0.2); color: var(--danger);
+        }
+        .rank-medal {
+            display: inline-block; width: 28px; height: 28px; line-height: 28px;
+            text-align: center; border-radius: 50%; background: #334155;
+            font-size: 12px; font-weight: bold;
+        }
+        .rank-1 { background: #fbbf24; color: #78350f; }
+        .rank-2 { background: #cbd5e1; color: #334155; }
+        .rank-3 { background: #b45309; color: #fffbeb; }
+
+        @media (max-width: 1024px) {
+            .charts-row, .tables-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="admin-header glass">
+            <div class="logo-area">
+                <img src="/img/tlmps_llogo.png" alt="Logo" onerror="this.src='https://via.placeholder.com/50'">
+                <h1>Control <span>Tower</span></h1>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <a href="/superadmin/analytics/results" class="logout-btn" style="background: rgba(16, 185, 129, 0.1); color: var(--accent); border-color: rgba(16, 185, 129, 0.2);">📄 Results Viewer</a>
+                <a href="/logout" class="logout-btn">SECURE LOGOUT</a>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <form class="filter-bar glass" method="GET" action="/superadmin/analytics">
+            <select name="session">
+                <option value="2025_and_2026" <%= session === '2025_and_2026' ? 'selected' : '' %>>Session: 2025/2026</option>
+                <option value="2026_and_2027" <%= session === '2026_and_2027' ? 'selected' : '' %>>Session: 2026/2027</option>
+            </select>
+            <select name="term">
+                <option value="First_term" <%= term === 'First_term' ? 'selected' : '' %>>First Term</option>
+                <option value="Second_term" <%= term === 'Second_term' ? 'selected' : '' %>>Second Term</option>
+                <option value="Third_term" <%= term === 'Third_term' ? 'selected' : '' %>>Third Term</option>
+            </select>
+            <select name="class">
+                <option value="">All Classes (School Wide)</option>
+                <option value="JUNIOR" <%= filterClass === 'JUNIOR' ? 'selected' : '' %>>Junior School (JSS 1-3)</option>
+                <option value="SENIOR" <%= filterClass === 'SENIOR' ? 'selected' : '' %>>Senior School (SSS 1-3)</option>
+                <option disabled>──────────</option>
+                <option value="JSS1" <%= filterClass === 'JSS1' ? 'selected' : '' %>>JSS 1</option>
+                <option value="JSS2" <%= filterClass === 'JSS2' ? 'selected' : '' %>>JSS 2</option>
+                <option value="JSS3" <%= filterClass === 'JSS3' ? 'selected' : '' %>>JSS 3</option>
+                <option value="SSS1" <%= filterClass === 'SSS1' ? 'selected' : '' %>>SSS 1</option>
+                <option value="SSS2" <%= filterClass === 'SSS2' ? 'selected' : '' %>>SSS 2</option>
+                <option value="SSS3" <%= filterClass === 'SSS3' ? 'selected' : '' %>>SSS 3</option>
+            </select>
+            <button type="submit" class="apply-btn">Generate Report</button>
+        </form>
+
+        <!-- Key Metrics -->
+        <div class="stats-grid">
+            <div class="stat-card glass">
+                <p>Total Analyzed Students</p>
+                <h3><%= stats.totalStudents %></h3>
+            </div>
+            <div class="stat-card glass accent-green">
+                <p>Highest Overall Average</p>
+                <h3><%= stats.topStudents.length > 0 ? stats.topStudents[0].average.toFixed(2) + '%' : 'N/A' %></h3>
+            </div>
+            <div class="stat-card glass">
+                <p>Top Performing Scholar</p>
+                <h3 style="font-size: 24px; margin-top: 25px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent);">
+                    <%= stats.topStudents.length > 0 ? stats.topStudents[0].name : 'N/A' %>
+                </h3>
+            </div>
+        </div>
+
+        <!-- Analytics Charts -->
+        <div class="charts-row">
+            <div class="chart-card glass">
+                <h4 class="card-title">📊 Class Performance Comparison</h4>
+                <div class="chart-wrapper">
+                    <canvas id="classChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card glass">
+                <h4 class="card-title">📈 Subject Pass vs Fail Rates</h4>
+                <div class="chart-wrapper">
+                    <canvas id="subjectChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tables -->
+        <div class="tables-row">
+            <!-- Top Performers -->
+            <div class="table-card glass">
+                <h4 class="card-title" style="color: var(--accent);">🏆 Top 10 Performers Leaderboard</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th>Average</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% stats.topStudents.slice(0, 10).forEach((s, index) => { 
+                            let rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : '';
+                        %>
+                            <tr>
+                                <td><div class="rank-medal <%= rankClass %>"><%= index + 1 %></div></td>
+                                <td style="color: white; font-weight: 600;"><%= s.name %></td>
+                                <td><%= s.class %></td>
+                                <td><span class="score-badge"><%= s.average.toFixed(2) %>%</span></td>
+                            </tr>
+                        <% }) %>
+                        <% if (stats.topStudents.length === 0) { %>
+                            <tr><td colspan="4" style="text-align: center;">No data available</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Needs Attention -->
+            <div class="table-card glass">
+                <h4 class="card-title" style="color: var(--danger);">⚠️ Needs Attention (Lowest 10)</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Student Name</th>
+                            <th>Class</th>
+                            <th>Average</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% stats.worstStudents.slice(0, 10).forEach((s, index) => { %>
+                            <tr>
+                                <td><div class="rank-medal" style="background: rgba(239, 68, 68, 0.2); color: var(--danger);">!</div></td>
+                                <td style="color: white; font-weight: 600;"><%= s.name %></td>
+                                <td><%= s.class %></td>
+                                <td><span class="score-badge danger"><%= s.average.toFixed(2) %>%</span></td>
+                            </tr>
+                        <% }) %>
+                        <% if (stats.worstStudents.length === 0) { %>
+                            <tr><td colspan="4" style="text-align: center;">No data available</td></tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Logic -->
+    <script>
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+        Chart.defaults.plugins.tooltip.titleColor = '#fff';
+        Chart.defaults.plugins.tooltip.bodyColor = '#cbd5e1';
+        Chart.defaults.plugins.tooltip.padding = 12;
+        Chart.defaults.plugins.tooltip.cornerRadius = 8;
+
+        const stats = <%- JSON.stringify(stats) %>;
+
+        // Class Averages Chart
+        const classCtx = document.getElementById('classChart');
+        if (Object.keys(stats.classAverages).length > 0) {
+            new Chart(classCtx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(stats.classAverages),
+                    datasets: [{
+                        label: 'Average Score (%)',
+                        data: Object.values(stats.classAverages),
+                        backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                        hoverBackgroundColor: 'rgba(124, 58, 237, 1)',
+                        borderRadius: 6
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { 
+                            beginAtZero: true, max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }
+                        },
+                        x: { grid: { display: false, drawBorder: false } }
+                    } 
+                }
+            });
+        }
+
+        // Subject Pass/Fail Chart (Stacked Bar)
+        const subCtx = document.getElementById('subjectChart');
+        const subjects = Object.keys(stats.subjectStats);
+        
+        // Calculate percentages
+        const chartData = subjects.map(sub => {
+            const s = stats.subjectStats[sub];
+            const total = s.passed + s.failed;
+            const passRate = total > 0 ? (s.passed / total) * 100 : 0;
+            const failRate = total > 0 ? (s.failed / total) * 100 : 0;
+            return { sub, passRate, failRate, totalStudents: total };
+        });
+
+        // Sort by failure rate descending (so most failed are at the top)
+        chartData.sort((a, b) => b.failRate - a.failRate);
+        const top10Subjects = chartData.slice(0, 10);
+
+        if (top10Subjects.length > 0) {
+            new Chart(subCtx, {
+                type: 'bar',
+                data: {
+                    labels: top10Subjects.map(x => x.sub),
+                    datasets: [
+                        {
+                            label: 'Fail Rate (%)',
+                            data: top10Subjects.map(x => x.failRate),
+                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                            borderRadius: { topLeft: 4, bottomLeft: 4 }
+                        },
+                        {
+                            label: 'Pass Rate (%)',
+                            data: top10Subjects.map(x => x.passRate),
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                            borderRadius: { topRight: 4, bottomRight: 4 }
+                        }
+                    ]
+                },
+                options: { 
+                    indexAxis: 'y', // Horizontal stacked bar
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const raw = context.raw.toFixed(1);
+                                    return `${context.dataset.label}: ${raw}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { 
+                        x: { 
+                            stacked: true, beginAtZero: true, max: 100,
+                            grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }
+                        },
+                        y: { 
+                            stacked: true,
+                            grid: { display: false, drawBorder: false }
+                        }
+                    } 
+                }
+            });
+        }
+    </script>
+</body>
+</html>

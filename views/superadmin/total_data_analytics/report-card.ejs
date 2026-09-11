@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Report Card - <%= student.admission_no %></title>
+    <style>
+        body{font-family:Arial,sans-serif;background:#f4f0fa;color:#1e293b;margin:0;padding:24px}
+        .card{max-width:850px;margin:auto;background:#fff;border-radius:16px;padding:30px;box-shadow:0 10px 30px #3b1c5620}
+        header{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #84cc16;padding-bottom:18px}
+        h1{color:#3b1c56;margin:0 0 8px} h2{color:#5c2d91;margin:22px 0 12px}
+        .meta{color:#64748b;line-height:1.7}.actions{display:flex;gap:10px;flex-wrap:wrap}
+        .button{display:inline-block;padding:10px 14px;border-radius:8px;background:#84cc16;color:#1e293b;text-decoration:none;font-weight:700}
+        .button.secondary{background:#3b1c56;color:#fff} table{width:100%;border-collapse:collapse}
+        th,td{text-align:left;padding:11px;border-bottom:1px solid #e2e8f0} th{background:#f4f0fa;color:#3b1c56}
+        @media print{body{background:#fff;padding:0}.card{box-shadow:none}.actions{display:none}}
+    </style>
+</head>
+<body>
+    <main class="card">
+        <header>
+            <div><h1>The Leaders Memorial Private School</h1><div class="meta">Student Report Card</div></div>
+            <div class="actions">
+                <a class="button" href="?download=1">Download PDF</a>
+                <a class="button secondary" href="javascript:window.print()">Print</a>
+            </div>
+        </header>
+        <h2><%= student.surname %> <%= student.middle_name || '' %> <%= student.last_name || '' %></h2>
+        <div class="meta">Admission No: <%= student.admission_no %> · Class: <%= enrollment.class_name %> · <%= enrollment.session_name %> · <%= enrollment.term_name %></div>
+        <table><thead><tr><th>Subject</th><th>CA</th><th>MCQ</th><th>Theory</th><th>Total</th></tr></thead><tbody>
+            <% scores.forEach(score => { %><tr><td><%= score.subject_name %></td><td><%= score.ca_score %></td><td><%= score.mcq_score %></td><td><%= score.theory_score %></td><td><strong><%= score.total_score %></strong></td></tr><% }) %>
+        </tbody></table>
+        <h2>Total Score: <%= total %></h2>
+    </main>
+</body>
+</html>
