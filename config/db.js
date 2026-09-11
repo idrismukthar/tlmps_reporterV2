@@ -54,7 +54,9 @@ db.serialize(() => {
     passport_url TEXT,
     password_hash TEXT,
     nin_hash TEXT,
-    lassra_hash TEXT
+    lassra_hash TEXT,
+    nin_encrypted TEXT,
+    lassra_encrypted TEXT
   )`);
 
   // Migration: Ensure department column exists if table was created previously
@@ -64,6 +66,8 @@ db.serialize(() => {
   db.run(`ALTER TABLE students ADD COLUMN password_hash TEXT`, () => {});
   db.run(`ALTER TABLE students ADD COLUMN nin_hash TEXT`, () => {});
   db.run(`ALTER TABLE students ADD COLUMN lassra_hash TEXT`, () => {});
+  db.run(`ALTER TABLE students ADD COLUMN nin_encrypted TEXT`, () => {});
+  db.run(`ALTER TABLE students ADD COLUMN lassra_encrypted TEXT`, () => {});
 
   // Migrations for databases created before term lifecycle support.
   db.run(
@@ -161,6 +165,35 @@ db.serialize(() => {
     FOREIGN KEY(session_id) REFERENCES academic_sessions(session_id) ON DELETE CASCADE,
     FOREIGN KEY(term_id) REFERENCES academic_terms(term_id) ON DELETE CASCADE
   )`);
+
+  // 5. TERM ATTENDANCE
+  // Attendance is scoped to a term so records remain tied to the enrolment
+  // roster and cannot be confused across academic sessions.
+  db.run(`CREATE TABLE IF NOT EXISTS attendance_days (
+    attendance_day_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term_id INTEGER NOT NULL,
+    attendance_date TEXT NOT NULL,
+    is_holiday INTEGER NOT NULL DEFAULT 0 CHECK(is_holiday IN (0, 1)),
+    holiday_name TEXT,
+    UNIQUE(term_id, attendance_date),
+    FOREIGN KEY(term_id) REFERENCES academic_terms(term_id) ON DELETE CASCADE
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS attendance_records (
+    attendance_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term_id INTEGER NOT NULL,
+    attendance_date TEXT NOT NULL,
+    admission_no TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('P', 'A')),
+    UNIQUE(term_id, attendance_date, admission_no),
+    FOREIGN KEY(term_id) REFERENCES academic_terms(term_id) ON DELETE CASCADE,
+    FOREIGN KEY(admission_no) REFERENCES students(admission_no) ON DELETE CASCADE
+  )`);
+
+  db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_days_term_date
+    ON attendance_days(term_id, attendance_date)`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_attendance_records_term_date
+    ON attendance_records(term_id, attendance_date)`);
 
   ["punctuality", "neatness", "obedience", "honesty", "discipline"].forEach(
     (column) =>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= className %> Attendance Register</title>
+  <style>
+    :root{font-family:Arial,sans-serif;color:#172033;background:#f3f0fa}
+    *{box-sizing:border-box}body{margin:0}.top{background:#fff;padding:22px 4%;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb}.brand{font-size:22px;font-weight:900;color:#1e3a8a}.top a{color:#64748b;font-weight:700}.tabs{display:flex;background:#fff;border-bottom:1px solid #e5e7eb}.tabs a{flex:1;text-align:center;padding:16px;color:#64748b;font-weight:800;text-decoration:none}.tabs a.active{color:#2563eb;border-bottom:4px solid #2563eb;background:#eff6ff}
+    main{padding:22px 17px 70px}h1{margin:0 0 8px;font-size:34px}.summary{color:#64748b;font-size:13px;margin:0 0 18px}.notice{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px;color:#9a3412;font-weight:700}.register-wrap{overflow:auto;background:#fff;border:1px solid #ddd6fe;border-radius:10px;box-shadow:0 1px 3px #0001}.register{border-collapse:collapse;min-width:1050px;width:100%}th,td{border-bottom:1px solid #e5e7eb;text-align:center;white-space:nowrap}thead th{background:#3b1c56;color:#fff;font-size:13px;padding:8px 7px}.student-head{min-width:290px;text-align:left;background:#eff6ff;color:#1e3a8a;position:sticky;left:0;z-index:3}.admin-head{min-width:70px;background:#eff6ff!important;color:#1e3a8a!important}.week{font-size:14px;min-width:250px;border-right:3px solid #c4b5fd}.day{font-size:11px;min-width:46px}.day.holiday{background:#6d28d9}.student-section td{background:#1e3a8a;color:#fff;text-align:left;font-weight:900;padding:7px 9px;letter-spacing:.04em}.student-name{text-align:left!important;position:sticky;left:0;background:#fff;z-index:2;min-width:290px;padding:8px 9px;color:#1e3a8a;font-weight:900}.student-name small{display:inline-block;margin-left:7px;background:#e5e7eb;color:#64748b;border-radius:4px;padding:2px 5px;font-size:9px}.admin{text-align:left;color:#64748b;font-family:monospace;padding:8px 5px}.mark{font-size:20px;font-weight:900;padding:6px 4px}.present{color:#22c55e}.absent{color:#ef4444}.holiday-mark{color:#3b82f6}.week-end{border-right:3px solid #c4b5fd}.back{display:inline-block;margin-bottom:14px;color:#2563eb;font-weight:800;text-decoration:none}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">TLMPS ATTENDANCE</div><a href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>">← Classes</a></header>
+  <nav class="tabs"><a href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>/class?class_name=<%= encodeURIComponent(className) %>">Mark Attendance</a><a class="active" href="#">View Register</a></nav>
+  <main>
+    <a class="back" href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>/class?class_name=<%= encodeURIComponent(className) %>">← Back to daily attendance</a>
+    <h1>Attendance register</h1>
+    <p class="summary"><%= term.resumption_date || "—" %> through <%= term.vacation_date || "—" %>. ✓ = Present, ✕ = Absent, H = Holiday.</p>
+    <% if (error) { %><p class="notice"><%= error %></p><% } %>
+    <% if (weeks.length) { %>
+      <div class="register-wrap"><table class="register">
+        <thead>
+          <tr><th class="student-head" rowspan="2">STUDENT NAME</th><th class="admin-head" rowspan="2">ADMIN<br>NO</th><% weeks.forEach(week => { %><th class="week" colspan="<%= week.dates.length %>"><%= week.label %></th><% }) %></tr>
+          <tr><% weeks.forEach(week => week.dates.forEach(date => { const holiday = dayMap[date] && dayMap[date].is_holiday; %><th class="day <%= holiday ? 'holiday' : '' %>"><%= displayAttendanceDate(date).split(" ")[0] %><br><%= displayAttendanceDate(date).split(" ").slice(1).join(" ") %></th><% })) %></tr>
+        </thead>
+        <tbody>
+          <tr class="student-section"><td colspan="<%= 2 + weeks.reduce((total, week) => total + week.dates.length, 0) %>">MALE STUDENTS</td></tr>
+          <% maleStudents.concat(femaleStudents).forEach((student, studentIndex) => { if (studentIndex === maleStudents.length) { %>
+            <tr class="student-section"><td colspan="<%= 2 + weeks.reduce((total, week) => total + week.dates.length, 0) %>">FEMALE STUDENTS</td></tr>
+          <% } const fullName = [student.surname, student.middle_name, student.last_name].filter(Boolean).join(" "); %>
+            <tr>
+              <td class="student-name"><%= fullName %><small><%= student.class_name %></small></td><td class="admin"><%= student.admission_no %></td>
+              <% weeks.forEach(week => week.dates.forEach((date, index) => { const holiday = dayMap[date] && dayMap[date].is_holiday; const status = recordMap[date + ":" + student.admission_no]; %>
+                <td class="mark <%= holiday ? 'holiday-mark' : status === 'P' ? 'present' : status === 'A' ? 'absent' : '' %> <%= index === week.dates.length - 1 ? 'week-end' : '' %>"><%= holiday ? "H" : status === "P" ? "✓" : status === "A" ? "✕" : "—" %></td>
+              <% })) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table></div>
+    <% } %>
+  </main>
+</body>
+</html>

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance - Sessions</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f0fa;color:#1e1b26;margin:0}.top{background:#3b1c56;color:#fff;padding:20px 6%;display:flex;justify-content:space-between;align-items:center}.top a{color:#fff}.wrap{max-width:1000px;margin:35px auto;padding:0 20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}.card{background:#fff;border:1px solid #e2d4f0;border-radius:12px;padding:22px;box-shadow:0 2px 8px #3b1c5612}.card a{display:block;background:#84cc16;color:#3b1c56;text-decoration:none;text-align:center;padding:11px;border-radius:7px;font-weight:bold;margin-top:18px}
+  </style>
+</head>
+<body><header class="top"><strong>TLMPS Attendance Register</strong><a href="/superadmin/dashboard">Dashboard</a></header>
+<main class="wrap"><h1>Select an academic session</h1><div class="grid">
+  <% if (!sessions.length) { %><p>No academic sessions are available.</p><% } %>
+  <% sessions.forEach((session) => { %><article class="card"><h2><%= session.session_name %></h2><p>Session ID #<%= session.session_id %></p><a href="/superadmin/attendance/<%= session.session_id %>">View terms →</a></article><% }) %>
+</div></main></body></html>

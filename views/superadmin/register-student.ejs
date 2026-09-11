@@ -476,7 +476,7 @@
                         <label>NIN (optional, 11 digits)</label>
                         <div class="otp-container identifier-otp" aria-label="NIN digits">
                             <% for (let i = 0; i < 11; i++) { %>
-                                <input type="text" class="otp-digit nin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" aria-label="NIN digit <%= i + 1 %>">
+                                <input type="text" class="otp-digit nin-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" value="<%= student.nin ? student.nin[i] : '' %>" aria-label="NIN digit <%= i + 1 %>">
                             <% } %>
                         </div>
                         <input type="hidden" name="nin" id="final_nin">
@@ -488,7 +488,7 @@
                             <span class="identifier-prefix">LA-</span>
                             <div class="otp-container identifier-otp" aria-label="LASSRA digits">
                                 <% for (let i = 0; i < 10; i++) { %>
-                                    <input type="text" class="otp-digit lassra-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" aria-label="LASSRA digit <%= i + 1 %>">
+                                    <input type="text" class="otp-digit lassra-digit" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" value="<%= student.lassra ? student.lassra.replace(/^LA-/, '')[i] : '' %>" aria-label="LASSRA digit <%= i + 1 %>">
                                 <% } %>
                             </div>
                         </div>
@@ -997,9 +997,7 @@
                     } else {
                         // JSS: Start new registrations with every JSS subject selected.
                         checkbox.dataset.compulsory = "false";
-                        if (!isEditMode) {
-                            checkbox.checked = true;
-                        }
+                        checkbox.checked = true;
                     }
                 } else {
                     card.style.display = 'none';

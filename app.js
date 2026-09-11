@@ -52,11 +52,14 @@ try {
   // Gracefully skip if routes/admin.js is not created yet
 }
 
-// 5. Landing Page Route
+// 5. Student Login Home Page
 app.get("/", (req, res) => {
-  res.send(
-    '<h1>Welcome to TLMPS Academic Portal</h1><p><a href="/superadmin/dashboard">Super-Admin Dashboard</a></p><p><a href="/teacher/login">Teacher Score Entry</a></p>',
-  );
+  res.render("student/login", { error: null });
+});
+
+// Quick-links dashboard
+app.get("/homepage", (req, res) => {
+  res.render("home");
 });
 
 // 6. Server Initialization

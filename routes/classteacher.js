@@ -80,11 +80,21 @@ router.get("/remarks/:sessionId/:termId", requireClassTeacher, (req, res) => {
         (termErr, term) => {
           if (sessionErr || termErr || !session || !term)
             return res.status(404).send("Session or term not found");
-          db.all(
-            `SELECT e.admission_no, s.surname, s.middle_name, s.last_name,
+          db.get(
+            `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened
+             FROM attendance_records r
+             LEFT JOIN attendance_days d
+               ON d.term_id = r.term_id AND d.attendance_date = r.attendance_date
+             WHERE r.term_id = ? AND COALESCE(d.is_holiday, 0) = 0`,
+            [termId],
+            (daysErr, attendanceSummary) => {
+              db.all(
+                `SELECT e.admission_no, s.surname, s.middle_name, s.last_name,
                 COALESCE(r.teacher_name, '') AS teacher_name,
-                COALESCE(r.days_present, 0) AS days_present,
-                COALESCE(r.days_absent, 0) AS days_absent,
+                (SELECT COUNT(*) FROM attendance_records ap
+                 WHERE ap.term_id = ? AND ap.admission_no = e.admission_no AND ap.status = 'P') AS days_present,
+                (SELECT COUNT(*) FROM attendance_records aa
+                 WHERE aa.term_id = ? AND aa.admission_no = e.admission_no AND aa.status = 'A') AS days_absent,
                 COALESCE(r.teacher_comment, '') AS teacher_comment,
                 COALESCE(r.punctuality, 5) AS punctuality,
                 COALESCE(r.neatness, 5) AS neatness,
@@ -95,17 +105,19 @@ router.get("/remarks/:sessionId/:termId", requireClassTeacher, (req, res) => {
          JOIN students s ON s.admission_no = e.admission_no
          LEFT JOIN class_teacher_remarks r ON r.admission_no = e.admission_no
            AND r.session_id = e.session_id AND r.term_id = ?
-         WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
-         ORDER BY e.admission_no ASC`,
-            [termId, sessionId, className],
-            (studentErr, students) =>
-              res.render("classteacher/remarks", {
-                className,
-                session,
-                term,
-                students: studentErr ? [] : students || [],
-                query: req.query,
-              }),
+                WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
+                ORDER BY e.admission_no ASC`,
+                [termId, termId, termId, sessionId, className],
+                (studentErr, students) =>
+                  res.render("classteacher/remarks", {
+                    className,
+                    session,
+                    term: { ...term, live_days_opened: daysErr ? 0 : attendanceSummary?.days_opened || 0 },
+                    students: studentErr ? [] : students || [],
+                    query: req.query,
+                  }),
+              );
+            },
           );
         },
       );
@@ -121,14 +133,11 @@ router.post("/remarks/save", requireClassTeacher, (req, res) => {
   } = req.body;
   const className = req.session.classTeacher.assignedClass;
   const submitted = Array.isArray(req.body.students) ? req.body.students : [];
-  const daysOpened = Number(req.body.days_opened);
   if (
     !Number.isInteger(Number(sessionId)) ||
-    !Number.isInteger(Number(termId)) ||
-    !Number.isInteger(daysOpened) ||
-    daysOpened < 0
+    !Number.isInteger(Number(termId))
   ) {
-    return res.status(400).send("Invalid session, term, or school days value.");
+    return res.status(400).send("Invalid session or term.");
   }
   db.get(
     `SELECT term_id FROM academic_terms WHERE term_id = ? AND session_id = ? AND term_status = 'Active'`,
@@ -143,13 +152,23 @@ router.post("/remarks/save", requireClassTeacher, (req, res) => {
       const allowed = new Set(
         (allowedRows || []).map((row) => row.admission_no),
       );
+      db.all(
+        `SELECT admission_no,
+                SUM(CASE WHEN status = 'P' THEN 1 ELSE 0 END) AS days_present,
+                SUM(CASE WHEN status = 'A' THEN 1 ELSE 0 END) AS days_absent
+         FROM attendance_records
+         WHERE term_id = ? AND admission_no IN (${Array(allowed.size).fill("?").join(",")})
+         GROUP BY admission_no`,
+        [termId, ...allowed],
+        (attendanceErr, attendanceRows) => {
+      if (attendanceErr) return res.status(500).send("Unable to load attendance records.");
+      const attendanceByStudent = new Map((attendanceRows || []).map((row) => [row.admission_no, row]));
       const rows = submitted
         .filter((row) => allowed.has(row.admission_no))
         .map((row) => {
-          const present = Math.min(
-            daysOpened,
-            Math.max(0, Number(row.days_present) || 0),
-          );
+          const attendance = attendanceByStudent.get(row.admission_no) || {};
+          const present = Number(attendance.days_present) || 0;
+          const absent = Number(attendance.days_absent) || 0;
           const rating = (trait) =>
             Math.min(5, Math.max(1, Number(row[trait]) || 5));
           return [
@@ -159,7 +178,7 @@ router.post("/remarks/save", requireClassTeacher, (req, res) => {
             className,
             String(teacherName || "").trim(),
             present,
-            daysOpened - present,
+            absent,
             String(row.teacher_comment || "").trim(),
             rating("punctuality"),
             rating("neatness"),
@@ -188,6 +207,8 @@ router.post("/remarks/save", requireClassTeacher, (req, res) => {
           });
         });
       });
+        },
+      );
     },
   );
     },

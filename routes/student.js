@@ -85,6 +85,53 @@ const hasRecordedScore = (row) =>
 const hasCompleteTermScores = (rows) =>
   Array.isArray(rows) && rows.length > 0 && rows.every(hasRecordedScore);
 
+const buildAttendanceSummaries = (rows) => {
+  const terms = new Map();
+
+  (rows || []).forEach((row) => {
+    if (!terms.has(row.term_id)) {
+      terms.set(row.term_id, {
+        term_id: row.term_id,
+        term_name: row.term_name,
+        term_number: row.term_number,
+        records: new Map(),
+      });
+    }
+
+    if (row.attendance_date && row.status) {
+      terms.get(row.term_id).records.set(row.attendance_date, row.status);
+    }
+  });
+
+  return Array.from(terms.values()).map((term) => {
+    const statuses = Array.from(term.records.entries())
+      .sort(([firstDate], [secondDate]) =>
+        String(firstDate).localeCompare(String(secondDate)),
+      )
+      .map(([, status]) => status);
+    let currentStreak = 0;
+    let maxStreak = 0;
+
+    statuses.forEach((status) => {
+      if (status === "P") {
+        currentStreak += 1;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        currentStreak = 0;
+      }
+    });
+
+    return {
+      term_id: term.term_id,
+      term_name: term.term_name,
+      term_number: term.term_number,
+      days_present: statuses.filter((status) => status === "P").length,
+      days_absent: statuses.filter((status) => status === "A").length,
+      max_streak: maxStreak,
+    };
+  });
+};
+
 const calculateGpa = (rows) => {
   if (!hasCompleteTermScores(rows)) {
     return { qualityPoints: 0, units: 0, value: null, complete: false };
@@ -576,11 +623,39 @@ router.get("/profile", requireStudent, (req, res) => {
         const sessionSummaries = buildSessionPerformance(
           err ? [] : sessionRows || [],
         );
-        res.render("student/profile", {
-          student,
-          sessionSummaries,
-          sessions: sessionSummaries,
-        });
+        db.all(
+          `SELECT t.term_id, t.term_name, t.term_number,
+                  ar.attendance_date, ar.status
+           FROM academic_sessions s
+           JOIN academic_terms t ON t.session_id = s.session_id
+           LEFT JOIN attendance_records ar
+             ON ar.term_id = t.term_id
+            AND ar.admission_no = ?
+            AND ar.status IN ('P', 'A')
+           WHERE s.session_name = ?
+             AND EXISTS (
+               SELECT 1
+               FROM attendance_records opened
+               WHERE opened.term_id = t.term_id
+             )
+           ORDER BY t.term_number ASC, ar.attendance_date ASC`,
+          [student.admission_no, "2026/2027"],
+          (attendanceErr, attendanceRows) => {
+            if (attendanceErr) {
+              return res.status(500).send("Unable to load attendance summary");
+            }
+
+            const attendanceSummaries = buildAttendanceSummaries(
+              attendanceRows,
+            );
+            res.render("student/profile", {
+              student,
+              sessionSummaries,
+              sessions: sessionSummaries,
+              attendanceSummaries,
+            });
+          },
+        );
       },
     );
   });

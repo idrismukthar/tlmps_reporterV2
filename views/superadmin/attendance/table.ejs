@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= className %> Attendance</title>
+  <style>
+    :root{font-family:Arial,sans-serif;color:#172033;background:#f3f4f6}
+    *{box-sizing:border-box}body{margin:0}.top{background:#fff;padding:22px 5%;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e5e7eb}
+    .brand{font-size:22px;font-weight:900;letter-spacing:.03em;color:#1e3a8a}.top a{color:#64748b;font-weight:700}
+    .tabs{display:flex;background:#fff;border-bottom:1px solid #e5e7eb}.tabs a{flex:1;text-align:center;padding:16px;color:#64748b;font-weight:800;text-decoration:none}.tabs a.active{color:#2563eb;border-bottom:4px solid #2563eb;background:#eff6ff}
+    .date-bar{background:#fff;padding:18px;display:flex;justify-content:center;border-bottom:1px solid #e5e7eb}.date-bar label{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;color:#2563eb;font-weight:800}.date-bar input{border:0;background:transparent;font-weight:800;color:#334155;font-size:16px;outline:0}
+    main{max-width:720px;margin:0 auto;padding:18px 16px 50px}.heading{display:flex;gap:10px;align-items:stretch;margin-bottom:26px}.date-title{flex:1;background:#111827;color:#fff;border-radius:9px;padding:14px;text-align:center;font-size:13px;font-weight:900;line-height:1.45;text-transform:uppercase;letter-spacing:.06em;box-shadow:0 2px 5px #0002}
+    .holiday-wrap{position:relative}.holiday-button{height:100%;border:1px solid #fecaca;background:#fff1f2;color:#dc2626;border-radius:9px;padding:0 14px;font-weight:900;cursor:pointer;white-space:nowrap}.holiday-menu{position:absolute;right:0;top:calc(100% + 7px);width:180px;background:#fff;border:1px solid #fecaca;border-radius:8px;padding:5px;box-shadow:0 5px 15px #0002;z-index:4}.holiday-menu label{display:block;padding:9px;color:#374151;font-size:12px;font-weight:800;cursor:pointer}.holiday-menu label:hover{background:#fff1f2;color:#dc2626}
+    h2{font-size:20px;color:#1e3a8a;border-bottom:2px solid #bfdbfe;padding-bottom:8px;margin:0 0 12px}.student{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 1px 2px #0000000d}.student-info{display:flex;align-items:center;gap:12px;min-width:0}.avatar{height:52px;width:52px;border-radius:50%;background:#ddd6fe;display:flex;align-items:center;justify-content:center;color:#6366f1;font-weight:900;flex:none}.student-name{font-weight:900;font-size:16px;line-height:1.25}.admission{font-size:12px;color:#2563eb;font-weight:900;margin-bottom:3px}.gender{display:inline-block;margin-top:5px;background:#e5e7eb;color:#64748b;border-radius:4px;padding:3px 8px;font-size:10px;font-weight:900}.actions{display:flex;gap:8px;flex:none}.actions button{display:flex;align-items:center;gap:5px;border:2px solid #e5e7eb;background:#fff;border-radius:9px;padding:11px 12px;font-weight:900;cursor:pointer}.actions button.absent{color:#ef4444}.actions button.present{color:#16a34a}.actions button.absent.selected{background:#ef4444;color:#fff;border-color:#dc2626}.actions button.present.selected{background:#22c55e;color:#fff;border-color:#16a34a}.save{border:0;background:#2563eb;color:#fff;border-radius:8px;padding:12px 18px;font-weight:900;cursor:pointer}.notice{background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:12px;color:#9a3412;font-weight:700}
+    @media(max-width:560px){.top{padding:16px}.brand{font-size:18px}.student{align-items:flex-start}.student-info{max-width:48%}.actions button{padding:9px 7px;font-size:11px}.date-title{font-size:11px}.holiday-button{font-size:11px;padding:0 8px}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">TLMPS ATTENDANCE</div><a href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>">← Classes</a></header>
+  <nav class="tabs"><a class="active" href="#">Mark Attendance</a><a href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>/class?class_name=<%= encodeURIComponent(className) %>&view=register">View Register</a></nav>
+  <div class="date-bar">
+    <label>📅 <input type="date" value="<%= selectedDate %>" min="<%= dates[0] || '' %>" max="<%= dates[dates.length - 1] || '' %>" onchange="changeDate(this.value)"></label>
+  </div>
+  <main>
+    <% if (error) { %><p class="notice"><%= error %></p><% } %>
+    <form method="post" action="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>/class" id="attendance-form">
+      <input type="hidden" name="class_name" value="<%= className %>">
+      <input type="hidden" name="selected_date" value="<%= selectedDate %>">
+      <div class="heading">
+        <div class="date-title">Attendance for <%= displayAttendanceDateLong(selectedDate) %></div>
+        <div class="holiday-wrap">
+          <button type="button" class="holiday-button" onclick="toggleHoliday()">Is it a holiday?⌄</button>
+          <div class="holiday-menu" id="holiday-menu" hidden>
+            <label><input type="checkbox" name="is_holiday" value="1" <%= dayMap[selectedDate] && dayMap[selectedDate].is_holiday ? "checked" : "" %> onchange="toggleHolidayFields(this)"> Mark this day as a holiday</label>
+            <label>Reason <input type="text" name="holiday_name" value="<%= dayMap[selectedDate] ? dayMap[selectedDate].holiday_name || '' : '' %>" placeholder="Holiday"></label>
+          </div>
+        </div>
+      </div>
+      <% if (dates.length) { %>
+        <h2><%= className %></h2>
+        <% students.forEach((student) => {
+          const fullName = [student.surname, student.middle_name, student.last_name].filter(Boolean).join(" ");
+          const key = selectedDate + ":" + student.admission_no;
+          const status = recordMap[key];
+        %>
+          <div class="student">
+            <div class="student-info"><div class="avatar"><%= student.surname ? student.surname.charAt(0).toUpperCase() : "S" %></div><div><div class="admission"><%= student.admission_no %></div><div class="student-name"><%= fullName %></div><span class="gender">Student</span></div></div>
+            <div class="actions">
+              <button type="button" class="absent <%= status === 'A' ? 'selected' : '' %>" data-student="<%= student.admission_no %>" data-status="A" onclick="markStudent(this)">✕ Absent</button>
+              <button type="button" class="present <%= status === 'P' ? 'selected' : '' %>" data-student="<%= student.admission_no %>" data-status="P" onclick="markStudent(this)">✓ Present</button>
+              <input type="hidden" name="attendance[<%= student.admission_no %>]" value="<%= status || '' %>" id="attendance-<%= student.admission_no %>">
+            </div>
+          </div>
+        <% }) %>
+        <button class="save" type="submit">Save attendance</button>
+      <% } %>
+    </form>
+  </main>
+  <script>
+    function changeDate(date){if(date){window.location.href="/superadmin/attendance/<%= term.session_id %>/<%= term.term_id %>/class?class_name=<%= encodeURIComponent(className) %>&date="+encodeURIComponent(date)}}
+    function markStudent(button){var admission=button.dataset.student;document.querySelectorAll('[data-student="'+admission+'"]').forEach(function(item){item.classList.toggle("selected",item===button)});document.getElementById("attendance-"+admission).value=button.dataset.status}
+    function toggleHoliday(){var menu=document.getElementById("holiday-menu");menu.hidden=!menu.hidden}
+    function toggleHolidayFields(checkbox){document.querySelectorAll(".student").forEach(function(student){student.style.opacity=checkbox.checked?".5":"1"});document.querySelectorAll(".actions button").forEach(function(button){button.disabled=checkbox.checked})}
+  </script>
+</body>
+</html>

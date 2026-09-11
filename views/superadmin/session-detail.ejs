@@ -508,8 +508,8 @@
                             </div>
 
                             <div class="field-group">
-                                <label for="days_opened_<%= def.num %>">Days School Opened</label>
-                                <input type="number" id="days_opened_<%= def.num %>" name="days_opened" value="<%= termObj.days_school_opened || 60 %>" min="0" required>
+                                <label for="days_opened_<%= def.num %>">Days School Opened (Automatic)</label>
+                                <input type="number" id="days_opened_<%= def.num %>" value="<%= Number(termObj.live_days_opened || 0) %>" min="0" readonly aria-readonly="true" title="This value is calculated from saved attendance records">
                             </div>
 
                             <div class="actions-vertical-group">

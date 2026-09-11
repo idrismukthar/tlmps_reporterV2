@@ -507,6 +507,14 @@
                     <div class="info-label">Gender</div>
                     <div class="info-value"><%= student.gender %></div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">NIN</div>
+                    <div class="info-value"><%= student.nin || 'N/A' %></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">LASSRA</div>
+                    <div class="info-value"><%= student.lassra || 'N/A' %></div>
+                </div>
                 <div class="info-item full-width">
                     <div class="info-label">Residential Address</div>
                     <div class="info-value">🏠 <%= student.address %></div>

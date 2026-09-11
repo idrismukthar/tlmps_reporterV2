@@ -5,6 +5,7 @@ const uploadPassport = require("../middleware/upload");
 const PDFDocument = require("pdfkit");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const nigeriaStates = require("../static/states.json");
 
@@ -84,6 +85,53 @@ const hashOptionalIdentifier = (value, callback) => {
   bcrypt.hash(value, 12, callback);
 };
 
+const identifierKey = crypto
+  .createHash("sha256")
+  .update(
+    process.env.IDENTIFIER_ENCRYPTION_KEY ||
+      process.env.SESSION_SECRET ||
+      "tlmps_identifier_key_change_in_production",
+  )
+  .digest();
+
+const encryptIdentifier = (value) => {
+  if (!value) return null;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", identifierKey, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(value, "utf8"),
+    cipher.final(),
+  ]);
+  return `v1:${iv.toString("hex")}:${cipher
+    .getAuthTag()
+    .toString("hex")}:${encrypted.toString("hex")}`;
+};
+
+const decryptIdentifier = (value) => {
+  if (!value || !value.startsWith("v1:")) return null;
+  const [, ivHex, tagHex, encryptedHex] = value.split(":");
+  try {
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      identifierKey,
+      Buffer.from(ivHex, "hex"),
+    );
+    decipher.setAuthTag(Buffer.from(tagHex, "hex"));
+    return Buffer.concat([
+      decipher.update(Buffer.from(encryptedHex, "hex")),
+      decipher.final(),
+    ]).toString("utf8");
+  } catch (error) {
+    return null;
+  }
+};
+
+const exposeIdentifiers = (student) => ({
+  ...student,
+  nin: decryptIdentifier(student.nin_encrypted),
+  lassra: decryptIdentifier(student.lassra_encrypted),
+});
+
 router.get("/login", (req, res) =>
   res.render("superadmin/login", { error: null }),
 );
@@ -134,6 +182,31 @@ router.get("/register-student", (req, res) => {
   );
 });
 
+router.get("/api/check-admission/:admission_no", (req, res) => {
+  const admissionNo = String(req.params.admission_no || "").trim();
+  if (!/^\d{5}$/.test(admissionNo)) {
+    return res.json({ exists: false });
+  }
+
+  db.get(
+    `SELECT surname, middle_name, last_name
+     FROM students
+     WHERE admission_no = ?`,
+    [admissionNo],
+    (err, student) => {
+      if (err) return res.status(500).json({ error: "Admission lookup failed" });
+      res.json({
+        exists: Boolean(student),
+        name: student
+          ? [student.surname, student.middle_name, student.last_name]
+              .filter(Boolean)
+              .join(" ")
+          : null,
+      });
+    },
+  );
+});
+
 // POST Register Student
 router.post("/register-student", (req, res) => {
   uploadPassport.single("passport")(req, res, (err) => {
@@ -165,6 +238,8 @@ router.post("/register-student", (req, res) => {
 
     if (!session_id)
       return res.status(400).send("Academic session is required");
+    if (!/^\d{5}$/.test(String(admission_no || "").trim()))
+      return res.status(400).send("Admission number must be exactly 5 digits");
     if (nin && !/^\d{11}$/.test(nin))
       return res.status(400).send("NIN must contain exactly 11 digits");
     if (lassra && !/^LA-\d{10}$/.test(lassra))
@@ -176,12 +251,37 @@ router.post("/register-student", (req, res) => {
       return res.status(400).send("Please select a valid state and LGA");
     }
 
+    db.get(
+      `SELECT surname, middle_name, last_name
+       FROM students
+       WHERE admission_no = ?`,
+      [admission_no],
+      (lookupErr, existingStudent) => {
+        if (lookupErr)
+          return res.status(500).send("Admission lookup failed");
+        if (existingStudent) {
+          const owner = [
+            existingStudent.surname,
+            existingStudent.middle_name,
+            existingStudent.last_name,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          return res
+            .status(409)
+            .send(
+              `Admission number ${admission_no} already belongs to ${owner}. Please check again.`,
+            );
+        }
+
     hashOptionalIdentifier(nin, (ninErr, ninHash) => {
       if (ninErr) return res.status(500).send("NIN protection error");
       hashOptionalIdentifier(lassra, (lassraErr, lassraHash) => {
         if (lassraErr) return res.status(500).send("LASSRA protection error");
+        const ninEncrypted = encryptIdentifier(nin);
+        const lassraEncrypted = encryptIdentifier(lassra);
         db.run(
-          `INSERT INTO students (admission_no, surname, middle_name, last_name, class_name, department, gender, phone_number, email, address, state_of_origin, lga, dob, club, society, passport_url, nin_hash, lassra_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO students (admission_no, surname, middle_name, last_name, class_name, department, gender, phone_number, email, address, state_of_origin, lga, dob, club, society, passport_url, nin_hash, lassra_hash, nin_encrypted, lassra_encrypted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             admission_no,
             surname,
@@ -201,6 +301,8 @@ router.post("/register-student", (req, res) => {
             passport_url,
             ninHash,
             lassraHash,
+            ninEncrypted,
+            lassraEncrypted,
           ],
           function (dbErr) {
         if (dbErr)
@@ -222,7 +324,7 @@ router.post("/register-student", (req, res) => {
             ? subject_ids
             : [subject_ids];
           const stmt = db.prepare(
-            `INSERT INTO student_subject_selections (admission_no, subject_id, session_id) VALUES (?, ?, ?)`,
+            `INSERT OR IGNORE INTO student_subject_selections (admission_no, subject_id, session_id) VALUES (?, ?, ?)`,
           );
           selectedIds.forEach((id) => stmt.run(admission_no, id, session_id));
           stmt.finalize();
@@ -233,6 +335,8 @@ router.post("/register-student", (req, res) => {
         );
       });
     });
+      },
+    );
   });
 });
 
@@ -257,6 +361,7 @@ router.get("/student/:admission_no", (req, res) => {
     [adm],
     (err, student) => {
       if (!student) return res.status(404).send("Student Not Found");
+      student = exposeIdentifiers(student);
 
       const getEnrollmentSession = (callback) => {
         if (requestedSessionId) {
@@ -300,10 +405,11 @@ router.get("/student/:admission_no", (req, res) => {
           (err, enrolledSubjects) => {
             const currentClass = (session && session.enrolled_class) || student.class_name;
             const currentDept = (session && session.enrolled_department) || student.department;
+            const visibleStudent = exposeIdentifiers(student);
 
             res.render("superadmin/student-profile", {
               student: {
-                ...student,
+                ...visibleStudent,
                 class_name: currentClass,
                 department: currentDept,
               },
@@ -326,6 +432,7 @@ router.get("/student/:admission_no/edit", (req, res) => {
     [adm],
     (err, student) => {
       if (!student) return res.status(404).send("Student Not Found");
+      const visibleStudent = exposeIdentifiers(student);
 
       db.all(
         `SELECT * FROM subjects ORDER BY subject_name ASC`,
@@ -338,7 +445,7 @@ router.get("/student/:admission_no/edit", (req, res) => {
               const sessionId = req.query.session_id || "";
               const renderEditor = (session) =>
                 res.render("superadmin/register-student", {
-                  student,
+                  student: visibleStudent,
                   subjects: subjects || [],
                   selectedSubjectIds: (selections || []).map(
                     (selection) => selection.subject_id,
@@ -414,7 +521,7 @@ router.post("/student/:admission_no/edit", (req, res) => {
     }
 
     db.get(
-      `SELECT passport_url, nin_hash, lassra_hash FROM students WHERE admission_no = ?`,
+      `SELECT passport_url, nin_hash, lassra_hash, nin_encrypted, lassra_encrypted FROM students WHERE admission_no = ?`,
       [oldAdmissionNo],
       (findErr, student) => {
         if (!student) return res.status(404).send("Student Not Found");
@@ -434,9 +541,11 @@ router.post("/student/:admission_no/edit", (req, res) => {
               hashOptionalIdentifier(lassra, (lassraErr, lassraHash) => {
                 if (lassraErr)
                   return res.status(500).send("LASSRA protection error");
+                const ninEncrypted = encryptIdentifier(nin);
+                const lassraEncrypted = encryptIdentifier(lassra);
                 db.serialize(() => {
               db.run(
-                `UPDATE students SET admission_no = ?, surname = ?, middle_name = ?, last_name = ?, class_name = ?, department = ?, gender = ?, phone_number = ?, email = ?, address = ?, state_of_origin = ?, lga = ?, dob = ?, club = ?, society = ?, passport_url = ?, nin_hash = ?, lassra_hash = ? WHERE admission_no = ?`,
+                `UPDATE students SET admission_no = ?, surname = ?, middle_name = ?, last_name = ?, class_name = ?, department = ?, gender = ?, phone_number = ?, email = ?, address = ?, state_of_origin = ?, lga = ?, dob = ?, club = ?, society = ?, passport_url = ?, nin_hash = ?, lassra_hash = ?, nin_encrypted = ?, lassra_encrypted = ? WHERE admission_no = ?`,
                 [
                   newAdmissionNo,
                   surname,
@@ -456,6 +565,8 @@ router.post("/student/:admission_no/edit", (req, res) => {
                   passportUrl,
                   ninHash || student.nin_hash || null,
                   lassraHash || student.lassra_hash || null,
+                  ninEncrypted || student.nin_encrypted || null,
+                  lassraEncrypted || student.lassra_encrypted || null,
                   oldAdmissionNo,
                 ],
                 (updateErr) => {
@@ -468,15 +579,15 @@ router.post("/student/:admission_no/edit", (req, res) => {
                     [newAdmissionNo, class_name, oldAdmissionNo],
                   );
                   db.run(
-                    `DELETE FROM student_subject_selections WHERE admission_no = ?`,
-                    [oldAdmissionNo],
+                    `DELETE FROM student_subject_selections WHERE admission_no = ? AND session_id = ?`,
+                    [oldAdmissionNo, session_id],
                   );
                   if (subject_ids) {
                     const selectedIds = Array.isArray(subject_ids)
                       ? subject_ids
                       : [subject_ids];
                     const stmt = db.prepare(
-                      `INSERT INTO student_subject_selections (admission_no, subject_id, session_id) VALUES (?, ?, ?)`,
+                      `INSERT OR IGNORE INTO student_subject_selections (admission_no, subject_id, session_id) VALUES (?, ?, ?)`,
                     );
                     selectedIds.forEach((id) =>
                       stmt.run(newAdmissionNo, id, session_id),
@@ -509,6 +620,7 @@ router.get("/download-pdf/:admission_no", (req, res) => {
     [adm],
     (err, student) => {
       if (!student) return res.status(404).send("Student Not Found");
+      student = exposeIdentifiers(student);
 
       const getEnrollmentSession = (callback) => {
         if (requestedSessionId) {
@@ -717,6 +829,10 @@ router.get("/download-pdf/:admission_no", (req, res) => {
               { label: "EMAIL", val: student.email || "N/A", width: 255 },
             ],
             [
+              { label: "NIN", val: student.nin || "N/A", width: 250 },
+              { label: "LASSRA", val: student.lassra || "N/A", width: 255 },
+            ],
+            [
               {
                 label: "STATE OF ORIGIN",
                 val: student.state_of_origin,
@@ -919,7 +1035,16 @@ router.get("/sessions/:session_id", (req, res) => {
         [sessionId],
         (termErr, term) => {
           db.all(
-            `SELECT * FROM academic_terms WHERE session_id = ? ORDER BY term_number ASC`,
+            `SELECT t.*,
+                    (
+                      SELECT COUNT(DISTINCT r.attendance_date)
+                      FROM attendance_records r
+                      LEFT JOIN attendance_days d
+                        ON d.term_id = r.term_id AND d.attendance_date = r.attendance_date
+                      WHERE r.term_id = t.term_id AND COALESCE(d.is_holiday, 0) = 0
+                    ) AS live_days_opened
+             FROM academic_terms t
+             WHERE t.session_id = ? ORDER BY t.term_number ASC`,
             [sessionId],
             (termsErr, terms) => {
               db.all(
@@ -941,17 +1066,44 @@ router.get("/sessions/:session_id", (req, res) => {
   );
 });
 
+router.post("/update-term", (req, res) => {
+  const { term_id, vacation_date, resumption_date, next_term_resumes } = req.body;
+  db.run(
+    `UPDATE academic_terms
+     SET vacation_date = ?, resumption_date = ?, next_term_resumes = ?
+     WHERE term_id = ?`,
+    [vacation_date, resumption_date, next_term_resumes, term_id],
+    function (err) {
+      if (err) return res.status(500).send("Term Update Error: " + err.message);
+      const referrer = req.get("Referrer");
+      let redirectPath = "/superadmin/sessions";
+      if (referrer) {
+        try {
+          const referrerUrl = new URL(referrer, `${req.protocol}://${req.get("host")}`);
+          if (referrerUrl.origin === `${req.protocol}://${req.get("host")}`) {
+            redirectPath = `${referrerUrl.pathname}${referrerUrl.search}`;
+          }
+        } catch (redirectError) {
+          redirectPath = "/superadmin/sessions";
+        }
+      }
+      res.redirect(redirectPath);
+    },
+  );
+});
+
 router.post("/conclude-term", (req, res) => {
   const {
     term_id,
-    days_opened,
     vacation_date,
     resumption_date,
     next_term_resumes,
   } = req.body;
   db.run(
-    `UPDATE academic_terms SET days_school_opened = ?, vacation_date = ?, resumption_date = ?, next_term_resumes = ?, term_status = 'Concluded' WHERE term_id = ?`,
-    [days_opened, vacation_date, resumption_date, next_term_resumes, term_id],
+    `UPDATE academic_terms
+     SET vacation_date = ?, resumption_date = ?, next_term_resumes = ?, term_status = 'Concluded'
+     WHERE term_id = ?`,
+    [vacation_date, resumption_date, next_term_resumes, term_id],
     function (err) {
       if (err) return res.status(500).send("Term Update Error: " + err.message);
       db.get(
@@ -963,7 +1115,7 @@ router.post("/conclude-term", (req, res) => {
             const nextNumber = concluded.term_number + 1;
             const names = { 2: "Second Term", 3: "Third Term" };
             db.run(
-              `INSERT INTO academic_terms (session_id, term_name, term_number, term_status, days_school_opened, resumption_date) VALUES (?, ?, ?, 'Active', 60, ?)`,
+              `INSERT INTO academic_terms (session_id, term_name, term_number, term_status, days_school_opened, resumption_date) VALUES (?, ?, ?, 'Active', 0, ?)`,
               [
                 concluded.session_id,
                 names[nextNumber],
@@ -1008,6 +1160,312 @@ router.post("/conclude-term", (req, res) => {
       );
     },
   );
+});
+
+// Attendance workspace -----------------------------------------------------
+const parseTermDate = (value) => {
+  if (!value) return null;
+  const text = String(value).trim();
+  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (!match) match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(text) && [
+    null,
+    RegExp.$3,
+    RegExp.$2,
+    RegExp.$1,
+  ];
+  if (!match) return null;
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== Number(match[1]) ||
+    date.getUTCMonth() !== Number(match[2]) - 1 ||
+    date.getUTCDate() !== Number(match[3])
+  )
+    return null;
+  return date;
+};
+
+const formatAttendanceDate = (date) => date.toISOString().slice(0, 10);
+const displayAttendanceDate = (dateString) => {
+  const date = parseTermDate(dateString);
+  if (!date) return dateString || "";
+  return date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+};
+
+const displayAttendanceDateLong = (dateString) => {
+  const date = parseTermDate(dateString);
+  if (!date) return dateString || "";
+  return date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+const weekdayDates = (resumptionDate, vacationDate) => {
+  const start = parseTermDate(resumptionDate);
+  const end = parseTermDate(vacationDate);
+  if (!start || !end || start > end) return [];
+  const dates = [];
+  for (const date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
+    const day = date.getUTCDay();
+    if (day !== 0 && day !== 6) dates.push(formatAttendanceDate(date));
+  }
+  return dates;
+};
+
+const attendanceTerm = (sessionId, termId, callback) => {
+  db.get(
+    `SELECT t.*, s.session_name
+     FROM academic_terms t
+     JOIN academic_sessions s ON s.session_id = t.session_id
+     WHERE t.term_id = ? AND t.session_id = ?`,
+    [termId, sessionId],
+    callback,
+  );
+};
+
+router.get("/attendance", (req, res) => {
+  db.all(
+    `SELECT * FROM academic_sessions WHERE is_archived = 0 ORDER BY session_id DESC`,
+    [],
+    (err, sessions) => {
+      if (err) return res.status(500).send("Attendance sessions could not be loaded");
+      res.render("superadmin/attendance/sessions", { sessions: sessions || [] });
+    },
+  );
+});
+
+router.get("/attendance/:session_id", (req, res) => {
+  db.get(
+    `SELECT * FROM academic_sessions WHERE session_id = ?`,
+    [req.params.session_id],
+    (err, session) => {
+      if (err) return res.status(500).send("Attendance session could not be loaded");
+      if (!session) return res.status(404).send("Academic Session Not Found");
+      db.all(
+        `SELECT * FROM academic_terms WHERE session_id = ? ORDER BY term_number`,
+        [session.session_id],
+        (termsErr, terms) => {
+          if (termsErr) return res.status(500).send("Attendance terms could not be loaded");
+          res.render("superadmin/attendance/terms", { session, terms: terms || [] });
+        },
+      );
+    },
+  );
+});
+
+router.get("/attendance/:session_id/:term_id", (req, res) => {
+  attendanceTerm(req.params.session_id, req.params.term_id, (err, term) => {
+    if (err) return res.status(500).send("Attendance term could not be loaded");
+    if (!term) return res.status(404).send("Academic Term Not Found");
+    db.get(
+      `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened
+       FROM attendance_records r
+       LEFT JOIN attendance_days d
+         ON d.term_id = r.term_id AND d.attendance_date = r.attendance_date
+       WHERE r.term_id = ? AND COALESCE(d.is_holiday, 0) = 0`,
+      [term.term_id],
+      (daysErr, dayCount) => {
+        if (daysErr) return res.status(500).send("Attendance days could not be loaded");
+        db.all(
+          `SELECT class_name, COUNT(*) AS student_count
+           FROM academic_session_enrollments
+           WHERE session_id = ? AND enrollment_status = 'Enrolled'
+           GROUP BY class_name ORDER BY class_name`,
+          [req.params.session_id],
+          (classesErr, classes) => {
+            if (classesErr) return res.status(500).send("Attendance classes could not be loaded");
+            res.render("superadmin/attendance/classes", {
+              term,
+              classes: classes || [],
+              daysOpened: dayCount ? dayCount.days_opened || 0 : 0,
+            });
+          },
+        );
+      },
+    );
+  });
+});
+
+router.get("/attendance/:session_id/:term_id/class", (req, res) => {
+  const className = String(req.query.class_name || "").trim();
+  attendanceTerm(req.params.session_id, req.params.term_id, (err, term) => {
+    if (err) return res.status(500).send("Attendance term could not be loaded");
+    if (!term) return res.status(404).send("Academic Term Not Found");
+    if (!className) return res.redirect(`/superadmin/attendance/${req.params.session_id}/${req.params.term_id}`);
+    const dates = weekdayDates(term.resumption_date, term.vacation_date);
+    const requestedDate = String(req.query.date || "").trim();
+    const selectedDate = dates.includes(requestedDate)
+      ? requestedDate
+      : dates[0] || requestedDate;
+    if (req.query.view === "register") {
+      return db.all(
+        `SELECT e.admission_no, e.class_name, s.surname, s.middle_name, s.last_name, s.gender
+         FROM academic_session_enrollments e
+         JOIN students s ON s.admission_no = e.admission_no
+         WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
+         ORDER BY CASE WHEN UPPER(COALESCE(s.gender, '')) IN ('M', 'MALE') THEN 0 ELSE 1 END,
+                  s.surname, s.middle_name, s.last_name, e.admission_no`,
+        [req.params.session_id, className],
+        (studentsErr, registerStudents) => {
+          if (studentsErr) return res.status(500).send("Attendance students could not be loaded");
+          db.all(
+            `SELECT attendance_date, is_holiday, holiday_name
+             FROM attendance_days WHERE term_id = ?`,
+            [term.term_id],
+            (daysErr, dayRows) => {
+              if (daysErr) return res.status(500).send("Attendance days could not be loaded");
+              db.all(
+                `SELECT attendance_date, admission_no, status
+                 FROM attendance_records WHERE term_id = ?`,
+                [term.term_id],
+                (recordsErr, records) => {
+                  if (recordsErr) return res.status(500).send("Attendance records could not be loaded");
+                  const dayMap = Object.fromEntries((dayRows || []).map((day) => [day.attendance_date, day]));
+                  const recordMap = Object.fromEntries(
+                    (records || []).map((record) => [
+                      `${record.attendance_date}:${record.admission_no}`,
+                      record.status,
+                    ]),
+                  );
+                  const weeks = [];
+                  for (let index = 0; index < dates.length; index += 5) {
+                    const weekDates = dates.slice(index, index + 5);
+                    weeks.push({
+                      number: weeks.length + 1,
+                      dates: weekDates,
+                      label: `Week ${weeks.length + 1} (${displayAttendanceDate(weekDates[0])} - ${displayAttendanceDate(weekDates[weekDates.length - 1])})`,
+                    });
+                  }
+                  return res.render("superadmin/attendance/register", {
+                    term,
+                    className,
+                    weeks,
+                    displayAttendanceDate,
+                    dayMap,
+                    recordMap,
+                    maleStudents: (registerStudents || []).filter((student) =>
+                      ["M", "MALE"].includes(String(student.gender || "").toUpperCase()),
+                    ),
+                    femaleStudents: (registerStudents || []).filter((student) =>
+                      !["M", "MALE"].includes(String(student.gender || "").toUpperCase()),
+                    ),
+                    error: dates.length ? null : "Set valid resumption and vacation dates for this term before viewing the register.",
+                  });
+                },
+              );
+            },
+          );
+        },
+      );
+    }
+    db.all(
+      `SELECT e.admission_no, e.class_name, s.surname, s.middle_name, s.last_name
+       FROM academic_session_enrollments e
+       JOIN students s ON s.admission_no = e.admission_no
+       WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
+       ORDER BY s.surname, s.last_name, s.middle_name, e.admission_no`,
+      [req.params.session_id, className],
+      (studentsErr, students) => {
+        if (studentsErr) return res.status(500).send("Attendance students could not be loaded");
+        db.all(
+          `SELECT attendance_date, is_holiday, holiday_name
+          FROM attendance_days
+          WHERE term_id = ? AND attendance_date = ?`,
+          [term.term_id, selectedDate],
+          (daysErr, dayRows) => {
+            if (daysErr) return res.status(500).send("Attendance days could not be loaded");
+            db.all(
+              `SELECT attendance_date, admission_no, status
+               FROM attendance_records
+               WHERE term_id = ? AND attendance_date = ?`,
+              [term.term_id, selectedDate],
+              (recordsErr, records) => {
+                if (recordsErr) return res.status(500).send("Attendance records could not be loaded");
+                const dayMap = Object.fromEntries((dayRows || []).map((day) => [day.attendance_date, day]));
+                const recordMap = Object.fromEntries(
+                  (records || []).map((record) => [
+                    `${record.attendance_date}:${record.admission_no}`,
+                    record.status,
+                  ]),
+                );
+                res.render("superadmin/attendance/table", {
+                  term,
+                  className,
+                  dates,
+                  selectedDate,
+                  displayAttendanceDateLong,
+                  dayMap,
+                  recordMap,
+                  students: students || [],
+                  error: dates.length ? null : "Set valid resumption and vacation dates for this term before recording attendance.",
+                });
+              },
+            );
+          },
+        );
+      },
+    );
+  });
+});
+
+router.post("/attendance/:session_id/:term_id/class", (req, res) => {
+  const className = String(req.body.class_name || "").trim();
+  attendanceTerm(req.params.session_id, req.params.term_id, (err, term) => {
+    if (err) return res.status(500).send("Attendance term could not be loaded");
+    if (!term) return res.status(404).send("Academic Term Not Found");
+    const dates = weekdayDates(term.resumption_date, term.vacation_date);
+    const selectedDate = String(req.body.selected_date || "").trim();
+    if (!dates.includes(selectedDate)) {
+      return res.status(400).send("Please select a valid weekday in this term.");
+    }
+    const attendance = req.body.attendance || {};
+    const isHoliday = req.body.is_holiday === "1";
+    const holidayName = String(req.body.holiday_name || "").trim();
+    db.serialize(() => {
+      db.run("BEGIN TRANSACTION");
+      db.run(
+        `INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(term_id, attendance_date)
+         DO UPDATE SET is_holiday = excluded.is_holiday, holiday_name = excluded.holiday_name`,
+        [term.term_id, selectedDate, isHoliday ? 1 : 0, isHoliday ? (holidayName || "Holiday") : null],
+      );
+      if (isHoliday) {
+        db.run(
+          `DELETE FROM attendance_records WHERE term_id = ? AND attendance_date = ?`,
+          [term.term_id, selectedDate],
+        );
+      } else {
+        Object.keys(attendance).forEach((admissionNo) => {
+          const status = attendance[admissionNo];
+          if (status === "P" || status === "A") {
+            db.run(
+              `INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(term_id, attendance_date, admission_no)
+               DO UPDATE SET status = excluded.status`,
+              [term.term_id, selectedDate, admissionNo, status],
+            );
+          }
+        });
+      }
+      db.run("COMMIT", (commitErr) => {
+        if (commitErr) return res.status(500).send("Attendance could not be saved: " + commitErr.message);
+        const selectedIndex = dates.indexOf(selectedDate);
+        const nextDate = dates[selectedIndex + 1] || selectedDate;
+        res.redirect(`/superadmin/attendance/${req.params.session_id}/${req.params.term_id}/class?class_name=${encodeURIComponent(className)}&date=${encodeURIComponent(nextDate)}`);
+      });
+    });
+  });
 });
 
 module.exports = router;

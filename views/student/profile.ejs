@@ -43,6 +43,15 @@
         .detail-value { color: var(--dark-slate); font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
         .profile-subject-list { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0; list-style: none; }
         .profile-subject-list li { padding: 8px 11px; border-radius: 999px; background: var(--light-purple); color: var(--primary); font-size: 12px; font-weight: 700; }
+        .attendance-summary-section { margin-top: 25px; }
+        .attendance-summary-heading { margin: 0 0 14px; color: var(--primary); font-size: 20px; }
+        .attendance-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+        .attendance-summary-card { padding: 18px; border: 1px solid rgba(59,28,86,.08); border-radius: 16px; background: linear-gradient(145deg, #fff, #f7f0ff); box-shadow: 0 3px 10px rgba(59,28,86,.07); }
+        .attendance-summary-card h4 { margin: 0 0 14px; color: var(--primary); font-size: 16px; }
+        .attendance-summary-values { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .attendance-summary-value { padding: 10px 5px; border-radius: 10px; background: rgba(255,255,255,.9); text-align: center; }
+        .attendance-summary-value strong { display: block; color: var(--primary); font-size: 21px; }
+        .attendance-summary-value span { display: block; margin-top: 4px; color: var(--mid-slate); font-size: 10px; font-weight: 800; line-height: 1.2; text-transform: uppercase; }
         @media (max-width: 991px) { .profile-content { padding: 86px 15px 32px; } .profile-main { width: 100%; padding: 0; } .profile-layout { margin: 0; } }
         @media (max-width: 600px) { .profile-content { padding: 74px 12px 28px; } .portal-topbar .portal-contact-btn { display: none; } .profile-main > .row { grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; } .profile-detail-card { padding: 17px; border-radius: 14px; } }
     </style>
@@ -241,6 +250,24 @@
                             <h3><i class="fa fa-book"></i> Session Performance</h3>
                             <p style="color: #888; font-style: italic;">No academic session results yet.</p>
                         </div>
+                    <% } %>
+
+                    <% if (attendanceSummaries && attendanceSummaries.length > 0) { %>
+                        <section class="attendance-summary-section" aria-labelledby="attendance-summary-heading">
+                            <h3 class="attendance-summary-heading" id="attendance-summary-heading">Attendance Summary · 2026/2027</h3>
+                            <div class="attendance-summary-grid">
+                                <% attendanceSummaries.forEach(term => { %>
+                                    <article class="attendance-summary-card">
+                                        <h4><%= term.term_name %></h4>
+                                        <div class="attendance-summary-values">
+                                            <div class="attendance-summary-value"><strong><%= term.days_present %></strong><span>Days Present</span></div>
+                                            <div class="attendance-summary-value"><strong><%= term.days_absent %></strong><span>Days Absent</span></div>
+                                            <div class="attendance-summary-value"><strong><%= term.max_streak %></strong><span>Max Streak</span></div>
+                                        </div>
+                                    </article>
+                                <% }) %>
+                            </div>
+                        </section>
                     <% } %>
 
 				</div>
