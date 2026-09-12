@@ -13,3 +13,17 @@ services:
         value: 20.19.1
       - key: SESSION_SECRET
         generateValue: true
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: TLMPS_JSS1_PASS
+        sync: false
+      - key: TLMPS_JSS2_PASS
+        sync: false
+      - key: TLMPS_JSS3_PASS
+        sync: false
+      - key: TLMPS_SSS1_PASS
+        sync: false
+      - key: TLMPS_SSS2_PASS
+        sync: false
+      - key: TLMPS_SSS3_PASS
+        sync: false
