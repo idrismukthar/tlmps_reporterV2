@@ -566,9 +566,10 @@ router.post("/register-student", (req, res) => {
       society,
       subject_ids,
       nin,
-      lassra,
+      lassra: submittedLassra,
     } = req.body;
 
+    const lassra = String(submittedLassra || "").trim().toUpperCase();
     const passport_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     if (!session_id)
@@ -577,8 +578,8 @@ router.post("/register-student", (req, res) => {
       return res.status(400).send("Admission number must be exactly 5 digits");
     if (nin && !/^\d{11}$/.test(nin))
       return res.status(400).send("NIN must contain exactly 11 digits");
-    if (lassra && !/^LA-\d{10}$/.test(lassra))
-      return res.status(400).send("LASSRA must use the format LA- followed by 10 digits");
+    if (lassra && !/^LA-[A-Z0-9]{10}$/.test(lassra))
+      return res.status(400).send("LASSRA must use the format LA- followed by 10 alphanumeric characters");
     const selectedState = nigeriaStates.find(
       (state) => state.name === state_of_origin,
     );
@@ -838,16 +839,17 @@ router.post("/student/:admission_no/edit", (req, res) => {
       subject_ids,
       session_id,
       nin,
-      lassra,
+      lassra: submittedLassra,
     } = req.body;
+    const lassra = String(submittedLassra || "").trim().toUpperCase();
     const newAdmissionNo = String(admission_no || "").trim();
     if (!/^\d{5}$/.test(newAdmissionNo)) {
       return res.status(400).send("Admission number must be exactly 5 digits");
     }
     if (nin && !/^\d{11}$/.test(nin))
       return res.status(400).send("NIN must contain exactly 11 digits");
-    if (lassra && !/^LA-\d{10}$/.test(lassra))
-      return res.status(400).send("LASSRA must use the format LA- followed by 10 digits");
+    if (lassra && !/^LA-[A-Z0-9]{10}$/.test(lassra))
+      return res.status(400).send("LASSRA must use the format LA- followed by 10 alphanumeric characters");
     const selectedState = nigeriaStates.find(
       (state) => state.name === state_of_origin,
     );
