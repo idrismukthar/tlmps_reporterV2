@@ -153,9 +153,22 @@ router.get("/login", (req, res) =>
   res.render("superadmin/login", { error: null }),
 );
 router.post("/login", (req, res) => {
+  const returnTo = String(req.body.returnTo || "");
+  const attendanceReturnPath = /^\/superadmin\/attendance(?:\/|$)/.test(returnTo)
+    ? returnTo
+    : null;
   if (req.body.password === (process.env.SUPERADMIN_PASSWORD || "tlmps")) {
     req.session.isSuperAdmin = true;
+    if (attendanceReturnPath) {
+      req.session.attendanceAccess = true;
+      return res.redirect(attendanceReturnPath);
+    }
     res.redirect("/superadmin/dashboard");
+  } else if (attendanceReturnPath) {
+    res.status(401).render("superadmin/attendance/reauth", {
+      returnTo: attendanceReturnPath,
+      error: "Incorrect superadmin password. Please try again.",
+    });
   } else {
     res.render("superadmin/login", { error: "Invalid Password" });
   }
@@ -167,10 +180,56 @@ router.get("/logout", (req, res) => {
 
 router.use(requireAuth);
 
+router.post("/attendance/open", (req, res) => {
+  const now = Date.now();
+  const tokens = Array.isArray(req.session.attendanceOpenTokens)
+    ? req.session.attendanceOpenTokens
+    : [];
+  const tokenIndex = tokens.findIndex(
+    (entry) => entry.token === req.body.token && entry.expiresAt > now,
+  );
+  if (tokenIndex < 0) {
+    return res.status(403).send("Open attendance from the superadmin dashboard.");
+  }
+  tokens.splice(tokenIndex, 1);
+  req.session.attendanceOpenTokens = tokens;
+  req.session.attendanceAccess = true;
+  res.redirect("/superadmin/attendance");
+});
+
+router.use((req, res, next) => {
+  const isAttendancePath =
+    req.path === "/attendance" || req.path.startsWith("/attendance/");
+  if (!isAttendancePath) {
+    delete req.session.attendanceAccess;
+    return next();
+  }
+  if (req.session.attendanceAccess) return next();
+  if (req.method !== "GET") {
+    return res.status(403).send("Open attendance from the dashboard or verify the superadmin password.");
+  }
+
+  const query = new URLSearchParams(req.query).toString();
+  const returnTo = `${req.baseUrl}${req.path}${query ? `?${query}` : ""}`;
+  res.status(401).render("superadmin/attendance/reauth", {
+    returnTo,
+    error: null,
+  });
+});
+
 // Dashboard
 router.get("/dashboard", (req, res) => {
+  const attendanceOpenToken = crypto.randomBytes(32).toString("hex");
+  const tokens = Array.isArray(req.session.attendanceOpenTokens)
+    ? req.session.attendanceOpenTokens.filter((entry) => entry.expiresAt > Date.now())
+    : [];
+  tokens.push({ token: attendanceOpenToken, expiresAt: Date.now() + 5 * 60 * 1000 });
+  req.session.attendanceOpenTokens = tokens.slice(-5);
   db.all(`SELECT * FROM academic_sessions`, [], (err, sessions) => {
-    res.render("superadmin/dashboard", { sessions: sessions || [] });
+    res.render("superadmin/dashboard", {
+      sessions: sessions || [],
+      attendanceOpenToken,
+    });
   });
 
   router.get("/analytics", async (req, res) => {
@@ -679,9 +738,21 @@ router.post("/register-student", (req, res) => {
 // All Students Page (Sorted by Admission No)
 router.get("/all-students", (req, res) => {
   db.all(
-    `SELECT * FROM students ORDER BY admission_no ASC`,
+    `SELECT s.*,
+            e.enrollment_status AS latest_enrollment_status
+     FROM students s
+     LEFT JOIN academic_session_enrollments e
+       ON e.admission_no = s.admission_no
+       AND e.session_id = (
+         SELECT MAX(e2.session_id)
+         FROM academic_session_enrollments e2
+         JOIN academic_sessions a ON a.session_id = e2.session_id
+         WHERE e2.admission_no = s.admission_no AND a.is_archived = 0
+       )
+     ORDER BY s.admission_no ASC`,
     [],
     (err, students) => {
+      if (err) return res.status(500).send("Student roster could not be loaded");
       res.render("superadmin/all-students", { students: students || [] });
     },
   );
@@ -1399,6 +1470,27 @@ router.get("/sessions/:session_id", (req, res) => {
           );
         },
       );
+    },
+  );
+});
+
+router.post("/sessions/:session_id/unenroll/:admission_no", (req, res) => {
+  const { session_id: sessionId, admission_no: admissionNo } = req.params;
+  db.run(
+    `UPDATE academic_session_enrollments
+     SET enrollment_status = 'Withdrawn'
+     WHERE session_id = ? AND admission_no = ? AND enrollment_status = 'Enrolled'`,
+    [sessionId, admissionNo],
+    function (err) {
+      if (err) {
+        return res
+          .status(500)
+          .send("Student could not be removed from this session: " + err.message);
+      }
+      if (this.changes === 0) {
+        return res.status(404).send("Enrolled student not found in this academic session");
+      }
+      res.redirect(`/superadmin/sessions/${encodeURIComponent(sessionId)}`);
     },
   );
 });

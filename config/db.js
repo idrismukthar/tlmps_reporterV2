@@ -121,6 +121,58 @@ db.serialize(() => {
   db.run(`ALTER TABLE academic_session_enrollments ADD COLUMN promotion_status TEXT DEFAULT 'Enrolled'`, () => {});
   db.run(`ALTER TABLE academic_session_enrollments ADD COLUMN promotion_average REAL`, () => {});
   db.run(`ALTER TABLE academic_session_enrollments ADD COLUMN override_reason TEXT`, () => {});
+  db.get(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'academic_session_enrollments'`,
+    [],
+    (err, table) => {
+      if (err) {
+        console.error("Enrollment status migration check failed:", err.message);
+        return;
+      }
+      if (!table || table.sql.includes("'Withdrawn'")) return;
+      db.exec(
+        `PRAGMA foreign_keys = OFF;
+         BEGIN TRANSACTION;
+         ALTER TABLE academic_session_enrollments RENAME TO academic_session_enrollments_old;
+         CREATE TABLE academic_session_enrollments (
+           enrollment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+           session_id INTEGER NOT NULL,
+           admission_no TEXT NOT NULL,
+           class_name TEXT NOT NULL,
+           department TEXT,
+           promotion_status TEXT DEFAULT 'Enrolled',
+           promotion_average REAL,
+           override_reason TEXT,
+           enrollment_status TEXT DEFAULT 'Enrolled' CHECK (enrollment_status IN ('Enrolled', 'Graduated', 'Alumni', 'Withdrawn')),
+           UNIQUE(session_id, admission_no),
+           FOREIGN KEY(session_id) REFERENCES academic_sessions(session_id) ON DELETE CASCADE,
+           FOREIGN KEY(admission_no) REFERENCES students(admission_no) ON DELETE CASCADE
+         );
+         INSERT INTO academic_session_enrollments
+           (enrollment_id, session_id, admission_no, class_name, department, promotion_status, promotion_average, override_reason, enrollment_status)
+         SELECT enrollment_id, session_id, admission_no, class_name, department, promotion_status, promotion_average, override_reason, enrollment_status
+         FROM academic_session_enrollments_old;
+         DROP TABLE academic_session_enrollments_old;
+         COMMIT;
+         PRAGMA foreign_keys = ON;`,
+        (migrationErr) => {
+          if (migrationErr) {
+            console.error("Enrollment status migration failed:", migrationErr.message);
+            db.run("ROLLBACK", (rollbackErr) => {
+              if (rollbackErr) {
+                console.error("Enrollment status migration rollback failed:", rollbackErr.message);
+              }
+              db.run("PRAGMA foreign_keys = ON", (pragmaErr) => {
+                if (pragmaErr) {
+                  console.error("Could not re-enable SQLite foreign keys:", pragmaErr.message);
+                }
+              });
+            });
+          }
+        },
+      );
+    },
+  );
   db.run(`ALTER TABLE academic_sessions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`, () => {});
   db.run(`ALTER TABLE academic_sessions ADD COLUMN original_session_name TEXT`, () => {});
   db.run(`UPDATE academic_sessions SET original_session_name = session_name WHERE original_session_name IS NULL`);

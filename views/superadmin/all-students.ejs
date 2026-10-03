@@ -466,6 +466,21 @@
             border: 1px solid var(--slate-200);
             font-weight: 500;
         }
+        .badge-status.active {
+            background: var(--lemon-bg);
+            color: #15803D;
+            border: 1px solid #BBF7D0;
+        }
+        .badge-status.withdrawn {
+            background: #FEF2F2;
+            color: #B91C1C;
+            border: 1px solid #FECACA;
+        }
+        .badge-status.inactive {
+            background: var(--slate-100);
+            color: var(--slate-600);
+            border: 1px solid var(--slate-200);
+        }
 
         .action-cell {
             display: flex;
@@ -614,7 +629,7 @@
                             <%= cls %> Roster
                         </div>
                         <div class="counter-badge">
-                            Enrolled Students: <span class="bold-num"><%= clsStudents.length %></span>
+                        Registered Students: <span class="bold-num"><%= clsStudents.length %></span>
                         </div>
                     </div>
 
@@ -622,17 +637,18 @@
                         <table class="roster-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 18%;">Admission No</th>
-                                    <th style="width: 38%;">Student Full Name</th>
-                                    <th style="width: 14%;">Gender</th>
-                                    <th style="width: 16%;">Department</th>
+                                    <th style="width: 16%;">Admission No</th>
+                                    <th style="width: 32%;">Student Full Name</th>
+                                    <th style="width: 11%;">Gender</th>
+                                    <th style="width: 15%;">Department</th>
+                                    <th style="width: 12%;">Status</th>
                                     <th style="width: 14%; text-align: right;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% if (clsStudents.length === 0) { %>
                                     <tr>
-                                        <td colspan="5">
+                                        <td colspan="6">
                                             <div class="empty-state">
                                                 <div class="empty-state-icon">📋</div>
                                                 <div class="empty-state-title">No Students Registered in <%= cls %></div>
@@ -643,8 +659,13 @@
                                 <% } else { %>
                                     <% clsStudents.forEach(s => { 
                                         const fullName = `${s.surname || ''} ${s.middle_name || ''} ${s.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                                        const status = s.latest_enrollment_status === 'Enrolled'
+                                            ? 'Active'
+                                            : s.latest_enrollment_status === 'Withdrawn'
+                                                ? 'Withdrawn'
+                                                : 'Not Enrolled';
                                     %>
-                                        <tr class="student-row" data-search="<%= (s.admission_no + ' ' + fullName + ' ' + (s.department || '')).toLowerCase() %>">
+                                        <tr class="student-row" data-search="<%= (s.admission_no + ' ' + fullName + ' ' + (s.department || '') + ' ' + status).toLowerCase() %>">
                                             <td class="td-adm"><%= s.admission_no %></td>
                                             <td>
                                                 <div class="student-name-text"><%= fullName %></div>
@@ -658,6 +679,9 @@
                                                 <% } else { %>
                                                     <span class="badge-pill badge-dept na">N/A</span>
                                                 <% } %>
+                                            </td>
+                                            <td>
+                                                <span class="badge-pill badge-status <%= status === 'Active' ? 'active' : status === 'Withdrawn' ? 'withdrawn' : 'inactive' %>"><%= status %></span>
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="action-cell" style="justify-content: flex-end;">

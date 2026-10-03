@@ -548,9 +548,12 @@
                         <span class="module-stat-val">Term & Class</span>
                     </div>
                 </div>
-                <a href="/superadmin/attendance" class="btn btn-purple btn-card-action">
+                <form method="POST" action="/superadmin/attendance/open">
+                    <input type="hidden" name="token" value="<%= attendanceOpenToken %>">
+                    <button type="submit" class="btn btn-purple btn-card-action">
                     Open Attendance Register →
-                </a>
+                    </button>
+                </form>
             </div>
 
             <!-- Class Teacher Remarks -->

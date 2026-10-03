@@ -5,6 +5,8 @@ const fs = require("fs");
 const session = require("express-session");
 const SQLiteStore = require("connect-sqlite3")(session);
 const rateLimit = require("./middleware/rate-limit");
+const swaggerUi = require("swagger-ui-express");
+const openApiDocument = require("./docs/openapi");
 
 const app = express();
 const sessionDirectory = process.env.SESSION_DIR
@@ -64,6 +66,16 @@ app.use(
   }),
 );
 
+app.get("/api-docs.json", (req, res) => res.json(openApiDocument));
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(openApiDocument, {
+    explorer: true,
+    customSiteTitle: "TLMPS Portal API Docs",
+  }),
+);
+
 // 4. Route Handlers
 const superadminRoutes = require("./routes/superadmin");
 app.use("/superadmin", superadminRoutes);
@@ -114,5 +126,6 @@ app.listen(PORT, () => {
   console.log(`  Class Teacher Portal: ${baseUrl}/teacher/dashboard`);
   console.log(`  Class Teacher Remarks: ${baseUrl}/classteacher/dashboard`);
   console.log(`  Subject Admin Login:  ${baseUrl}/admin/login`);
-  console.log(`  Subject Admin Scores: ${baseUrl}/admin/scores\n`);
+  console.log(`  Subject Admin Scores: ${baseUrl}/admin/scores`);
+  console.log(`  API Documentation:    ${baseUrl}/api-docs\n`);
 });
