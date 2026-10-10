@@ -242,6 +242,7 @@ const importAttendance = async (databasePath, rawTransfer) => {
     let recordsAdded = 0;
     let studentsAdded = 0;
     let enrollmentsAdded = 0;
+    let enrollmentStatusesUpdated = 0;
 
     for (const student of transfer.students) {
       if (studentIds.has(student.admissionNo)) continue;
@@ -266,7 +267,18 @@ const importAttendance = async (databasePath, rawTransfer) => {
     for (const enrollment of transfer.enrollments) {
       const sessionId = sessionIds.get(enrollment.sessionName);
       if (sessionId == null) continue;
-      if (enrollmentKeys.has(JSON.stringify([sessionId, enrollment.admissionNo]))) continue;
+      if (enrollmentKeys.has(JSON.stringify([sessionId, enrollment.admissionNo]))) {
+        if (enrollment.enrollmentStatus === "Withdrawn") {
+          enrollmentStatusesUpdated += await run(
+            db,
+            `UPDATE academic_session_enrollments
+             SET enrollment_status = 'Withdrawn'
+             WHERE session_id = ? AND admission_no = ? AND enrollment_status = 'Enrolled'`,
+            [sessionId, enrollment.admissionNo],
+          );
+        }
+        continue;
+      }
       enrollmentsAdded += await run(
         db,
         `INSERT INTO academic_session_enrollments
@@ -307,6 +319,7 @@ const importAttendance = async (databasePath, rawTransfer) => {
     return {
       studentsAdded,
       enrollmentsAdded,
+      enrollmentStatusesUpdated,
       daysAdded,
       daysSkipped: mappedDays.length - daysAdded,
       recordsAdded,

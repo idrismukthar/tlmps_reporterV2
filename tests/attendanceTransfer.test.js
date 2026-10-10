@@ -114,7 +114,7 @@ const transfer = {
       admissionNo: "A100",
       className: "JSS1",
       department: null,
-      enrollmentStatus: "Enrolled",
+      enrollmentStatus: "Withdrawn",
     },
     {
       sessionName: "2026/2027",
@@ -163,6 +163,9 @@ const main = async () => {
       INSERT INTO academic_terms VALUES (11, 1, 'First Term', 1);
       INSERT INTO students (admission_no, surname, last_name, class_name)
         VALUES ('A100', 'One', 'Existing', 'JSS1');
+      INSERT INTO academic_session_enrollments
+        (session_id, admission_no, class_name, enrollment_status)
+        VALUES (1, 'A100', 'JSS1', 'Enrolled');
       INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
         VALUES (11, '2026-09-01', 0, NULL);
       INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
@@ -175,7 +178,8 @@ const main = async () => {
       daysSkipped: 1,
       recordsAdded: 2,
       recordsSkipped: 1,
-      enrollmentsAdded: 2,
+      enrollmentsAdded: 1,
+      enrollmentStatusesUpdated: 1,
       studentsAdded: 1,
     });
     const existingRecord = await get(
@@ -206,6 +210,11 @@ const main = async () => {
       class_name: "JSS2",
       enrollment_status: "Withdrawn",
     });
+    const withdrawnEnrollment = await get(
+      `SELECT enrollment_status FROM academic_session_enrollments
+       WHERE session_id = 1 AND admission_no = 'A100'`,
+    );
+    assert.equal(withdrawnEnrollment.enrollment_status, "Withdrawn");
 
     const missingTermTransfer = {
       ...transfer,

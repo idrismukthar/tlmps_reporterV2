@@ -760,6 +760,7 @@ router.get("/all-students", (req, res) => {
          JOIN academic_sessions a ON a.session_id = e2.session_id
          WHERE e2.admission_no = s.admission_no AND a.is_archived = 0
        )
+     WHERE e.enrollment_status IS NULL OR e.enrollment_status != 'Withdrawn'
      ORDER BY s.admission_no ASC`,
     [],
     (err, students) => {
@@ -1817,9 +1818,13 @@ router.get("/attendance/:session_id/:term_id/class", (req, res) => {
             (daysErr, dayRows) => {
               if (daysErr) return res.status(500).send("Attendance days could not be loaded");
               db.all(
-                `SELECT attendance_date, admission_no, status
-                 FROM attendance_records WHERE term_id = ?`,
-                [term.term_id],
+                `SELECT r.attendance_date, r.admission_no, r.status
+                 FROM attendance_records r
+                 JOIN academic_session_enrollments e
+                   ON e.session_id = ? AND e.admission_no = r.admission_no
+                   AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
+                 WHERE r.term_id = ?`,
+                [term.session_id, className, term.term_id],
                 (recordsErr, records) => {
                   if (recordsErr) return res.status(500).send("Attendance records could not be loaded");
                   const dayMap = Object.fromEntries((dayRows || []).map((day) => [day.attendance_date, day]));
@@ -1879,8 +1884,12 @@ router.get("/attendance/:session_id/:term_id/class", (req, res) => {
             db.all(
               `SELECT attendance_date, admission_no, status
                FROM attendance_records
-               WHERE term_id = ? AND attendance_date = ?`,
-              [term.term_id, selectedDate],
+               WHERE term_id = ? AND attendance_date = ?
+                 AND admission_no IN (
+                   SELECT admission_no FROM academic_session_enrollments
+                   WHERE session_id = ? AND class_name = ? AND enrollment_status = 'Enrolled'
+                 )`,
+              [term.term_id, selectedDate, term.session_id, className],
               (recordsErr, records) => {
                 if (recordsErr) return res.status(500).send("Attendance records could not be loaded");
                 const dayMap = Object.fromEntries((dayRows || []).map((day) => [day.attendance_date, day]));
@@ -1923,41 +1932,57 @@ router.post("/attendance/:session_id/:term_id/class", (req, res) => {
     const attendance = req.body.attendance || {};
     const isHoliday = req.body.is_holiday === "1";
     const holidayName = String(req.body.holiday_name || "").trim();
-    db.serialize(() => {
-      db.run("BEGIN TRANSACTION");
-      db.run(
-        `INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
-         VALUES (?, ?, ?, ?)
-         ON CONFLICT(term_id, attendance_date)
-         DO UPDATE SET is_holiday = excluded.is_holiday, holiday_name = excluded.holiday_name`,
-        [term.term_id, selectedDate, isHoliday ? 1 : 0, isHoliday ? (holidayName || "Holiday") : null],
-      );
-      if (isHoliday) {
-        db.run(
-          `DELETE FROM attendance_records WHERE term_id = ? AND attendance_date = ?`,
-          [term.term_id, selectedDate],
-        );
-      } else {
-        Object.keys(attendance).forEach((admissionNo) => {
-          const status = attendance[admissionNo];
-          if (status === "P" || status === "A") {
+    const markedAdmissionNumbers = Object.entries(attendance)
+      .filter(([, status]) => status === "P" || status === "A")
+      .map(([admissionNo]) => admissionNo);
+    db.all(
+      `SELECT admission_no
+       FROM academic_session_enrollments
+       WHERE session_id = ? AND class_name = ? AND enrollment_status = 'Enrolled'`,
+      [term.session_id, className],
+      (rosterErr, roster) => {
+        if (rosterErr) return res.status(500).send("Attendance roster could not be verified");
+        const enrolledAdmissionNumbers = new Set((roster || []).map((student) => student.admission_no));
+        if (markedAdmissionNumbers.some((admissionNo) => !enrolledAdmissionNumbers.has(admissionNo))) {
+          return res.status(400).send("Attendance includes a student who is no longer enrolled in this session.");
+        }
+        db.serialize(() => {
+          db.run("BEGIN TRANSACTION");
+          db.run(
+            `INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(term_id, attendance_date)
+             DO UPDATE SET is_holiday = excluded.is_holiday, holiday_name = excluded.holiday_name`,
+            [term.term_id, selectedDate, isHoliday ? 1 : 0, isHoliday ? (holidayName || "Holiday") : null],
+          );
+          if (isHoliday) {
             db.run(
-              `INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(term_id, attendance_date, admission_no)
-               DO UPDATE SET status = excluded.status`,
-              [term.term_id, selectedDate, admissionNo, status],
+              `DELETE FROM attendance_records WHERE term_id = ? AND attendance_date = ?`,
+              [term.term_id, selectedDate],
             );
+          } else {
+            Object.keys(attendance).forEach((admissionNo) => {
+              const status = attendance[admissionNo];
+              if (status === "P" || status === "A") {
+                db.run(
+                  `INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(term_id, attendance_date, admission_no)
+                   DO UPDATE SET status = excluded.status`,
+                  [term.term_id, selectedDate, admissionNo, status],
+                );
+              }
+            });
           }
+          db.run("COMMIT", (commitErr) => {
+            if (commitErr) return res.status(500).send("Attendance could not be saved: " + commitErr.message);
+            const selectedIndex = dates.indexOf(selectedDate);
+            const nextDate = dates[selectedIndex + 1] || selectedDate;
+            res.redirect(`/superadmin/attendance/${req.params.session_id}/${req.params.term_id}/class?class_name=${encodeURIComponent(className)}&date=${encodeURIComponent(nextDate)}`);
+          });
         });
-      }
-      db.run("COMMIT", (commitErr) => {
-        if (commitErr) return res.status(500).send("Attendance could not be saved: " + commitErr.message);
-        const selectedIndex = dates.indexOf(selectedDate);
-        const nextDate = dates[selectedIndex + 1] || selectedDate;
-        res.redirect(`/superadmin/attendance/${req.params.session_id}/${req.params.term_id}/class?class_name=${encodeURIComponent(className)}&date=${encodeURIComponent(nextDate)}`);
-      });
-    });
+      },
+    );
   });
 });
 
