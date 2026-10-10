@@ -10,6 +10,7 @@ const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const nigeriaStates = require("../static/states.json");
 const studentRoutes = require("./student");
+const { getStudentAttendanceSummary } = require("../services/attendanceSummary");
 const {
   AttendanceTransferError,
   defaultDatabasePath,
@@ -515,16 +516,7 @@ router.get("/dashboard", (req, res) => {
         weakSubjects,
         admissionNo,
       );
-      const attendance = await getRow(
-        `SELECT COUNT(DISTINCT r.attendance_date) AS days_opened,
-                COUNT(DISTINCT CASE WHEN r.status = 'P' THEN r.attendance_date END) AS days_present,
-                COUNT(DISTINCT CASE WHEN r.status = 'A' THEN r.attendance_date END) AS days_absent
-         FROM attendance_records r
-         LEFT JOIN attendance_days d
-           ON d.term_id = r.term_id AND d.attendance_date = r.attendance_date
-         WHERE r.term_id = ? AND r.admission_no = ? AND COALESCE(d.is_holiday, 0) = 0`,
-        [termId, admissionNo],
-      );
+      const attendance = await getStudentAttendanceSummary(db, termId, admissionNo);
       const remarks = await getRow(
         `SELECT * FROM class_teacher_remarks WHERE admission_no = ? AND session_id = ? AND term_id = ?`,
         [admissionNo, sessionId, termId],

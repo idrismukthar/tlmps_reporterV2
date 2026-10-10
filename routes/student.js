@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../config/db");
 const bcrypt = require("bcryptjs");
 const { calculatePromotionOutcome } = require("../services/promotion");
+const { getStudentAttendanceSummary } = require("../services/attendanceSummary");
 
 const renderLogin = (res, error = null) =>
   res.render("student/login", { error });
@@ -956,84 +957,97 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                           lowScoringSubjects,
                           student.admission_no,
                         );
-                        db.get(
-                          `SELECT * FROM class_teacher_remarks
-                           WHERE admission_no = ? AND session_id = ? AND term_id = ?`,
-                          [student.admission_no, sessionId, termId],
-                          (remarksErr, remarks) => {
-                            res.render("student/dashboard", {
-                              student: legacyStudent({ ...student, class_name: enrollment.class_name, department: enrollment.department || student.department }),
-                              session: enrollment.session_name,
-                              term: term.term_name,
-                              scores: reportScores,
-                              grandTotal,
-                              totalSubjects,
-                              currentAvg,
-                              t1Avg: firstTermAverage
-                                ? Number(firstTermAverage.average).toFixed(1)
-                                : "0.0",
-                              t2Avg: secondTermAverage
-                                ? Number(secondTermAverage.average).toFixed(1)
-                                : "0.0",
-                              cumulativeAvg: cumulativeAverageValue.toFixed(1),
-                              gpa: currentGpa.value,
-                              cgpa: cumulativeGpa,
-                              position: positionByStudent.has(
-                                student.admission_no,
-                              )
-                                ? ordinal(
-                                    positionByStudent.get(student.admission_no),
+                        getStudentAttendanceSummary(db, termId, student.admission_no)
+                          .then((attendance) => {
+                            db.get(
+                              `SELECT * FROM class_teacher_remarks
+                               WHERE admission_no = ? AND session_id = ? AND term_id = ?`,
+                              [student.admission_no, sessionId, termId],
+                              (remarksErr, remarks) => {
+                                res.render("student/dashboard", {
+                                  student: legacyStudent({
+                                    ...student,
+                                    class_name: enrollment.class_name,
+                                    department:
+                                      enrollment.department || student.department,
+                                  }),
+                                  session: enrollment.session_name,
+                                  term: term.term_name,
+                                  scores: reportScores,
+                                  grandTotal,
+                                  totalSubjects,
+                                  currentAvg,
+                                  t1Avg: firstTermAverage
+                                    ? Number(firstTermAverage.average).toFixed(1)
+                                    : "0.0",
+                                  t2Avg: secondTermAverage
+                                    ? Number(secondTermAverage.average).toFixed(1)
+                                    : "0.0",
+                                  cumulativeAvg: cumulativeAverageValue.toFixed(1),
+                                  gpa: currentGpa.value,
+                                  cgpa: cumulativeGpa,
+                                  position: positionByStudent.has(
+                                    student.admission_no,
                                   )
-                                : "-",
-                              promoMsg,
-                              resultStatus,
-                              finalPrincipalRemark,
-                              extra: {
-                                days_opened: term.days_school_opened || "",
-                                days_present:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.days_present,
-                                days_absent:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.days_absent,
-                                reason: "",
-                                next_term: term.next_term_resumes || "",
-                                teacher_comment:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.teacher_comment,
-                                teacher_name:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.teacher_name,
-                                conduct_rating:
-                                  remarksErr || !remarks
-                                    ? 5
-                                    : remarks.conduct_rating,
-                                punctuality:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.punctuality,
-                                neatness:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.neatness,
-                                obedience:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.obedience,
-                                honesty:
-                                  remarksErr || !remarks ? "" : remarks.honesty,
-                                discipline:
-                                  remarksErr || !remarks
-                                    ? ""
-                                    : remarks.discipline,
+                                    ? ordinal(
+                                        positionByStudent.get(student.admission_no),
+                                      )
+                                    : "-",
+                                  promoMsg,
+                                  resultStatus,
+                                  finalPrincipalRemark,
+                                  extra: {
+                                    days_opened: attendance?.days_opened || 0,
+                                    days_present:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.days_present,
+                                    days_absent:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.days_absent,
+                                    reason: "",
+                                    next_term: term.next_term_resumes || "",
+                                    teacher_comment:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.teacher_comment,
+                                    teacher_name:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.teacher_name,
+                                    conduct_rating:
+                                      remarksErr || !remarks
+                                        ? 5
+                                        : remarks.conduct_rating,
+                                    punctuality:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.punctuality,
+                                    neatness:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.neatness,
+                                    obedience:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.obedience,
+                                    honesty:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.honesty,
+                                    discipline:
+                                      remarksErr || !remarks
+                                        ? ""
+                                        : remarks.discipline,
+                                  },
+                                });
                               },
-                            });
-                          },
-                        );
+                            );
+                          })
+                          .catch(() =>
+                            res.status(500).send("Unable to load attendance summary"),
+                          );
                       },
                     );
                   },
