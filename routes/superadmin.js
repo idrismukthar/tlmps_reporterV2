@@ -160,6 +160,12 @@ const analyticsSessionName = (value) =>
 const analyticsTermName = (value) =>
   String(value || "First_term").replace(/_/g, " ");
 
+router.get("/", (req, res) => {
+  res.redirect(req.session && req.session.isSuperAdmin
+    ? "/superadmin/dashboard"
+    : "/superadmin/login");
+});
+
 router.get("/login", (req, res) =>
   res.render("superadmin/login", { error: null }),
 );
