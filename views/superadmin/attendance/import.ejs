@@ -14,8 +14,8 @@
     <section class="card">
       <h1>Import local attendance</h1>
       <p>Choose the attendance-only JSON export made from the computer where attendance was marked.</p>
-      <div class="notice">Only attendance days, holiday markers, and present/absent entries are imported. Sessions, terms, and students must already exist on this Render app.</div>
-      <div class="warning">Existing Render attendance is never overwritten. Matching entries already on Render are kept; only missing entries are added. If any session, term, or student cannot be matched, the whole import is rejected without changes.</div>
+      <div class="notice">This file contains only attendance plus the minimal roster fields (admission number, name, class, department, gender) and session enrollments for students referenced by those attendance records. It does not contain passwords, contact information, NIN, or LASSRA.</div>
+      <div class="warning">Existing Render students, enrollments, and attendance are never overwritten. Only missing records are added. All sessions and terms must already exist on Render; if they do not match, the whole import is rejected without changes.</div>
       <form method="POST" action="/superadmin/attendance/import" enctype="multipart/form-data">
         <input type="hidden" name="token" value="<%= token %>">
         <input type="file" name="attendanceFile" accept=".json,application/json" required>

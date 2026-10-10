@@ -53,6 +53,14 @@ const transfer = {
       isHoliday: 1,
       holidayName: "School Holiday",
     },
+    {
+      sessionName: "2026/2027",
+      termNumber: 1,
+      termName: "First Term",
+      date: "2026-09-03",
+      isHoliday: 0,
+      holidayName: null,
+    },
   ],
   records: [
     {
@@ -71,6 +79,50 @@ const transfer = {
       admissionNo: "A100",
       status: "A",
     },
+    {
+      sessionName: "2026/2027",
+      termNumber: 1,
+      termName: "First Term",
+      date: "2026-09-03",
+      admissionNo: "B200",
+      status: "P",
+    },
+  ],
+  students: [
+    {
+      admissionNo: "A100",
+      surname: "One",
+      middleName: null,
+      lastName: "Existing",
+      className: "JSS1",
+      department: null,
+      gender: "Female",
+    },
+    {
+      admissionNo: "B200",
+      surname: "Two",
+      middleName: "Local",
+      lastName: "Only",
+      className: "JSS2",
+      department: null,
+      gender: "Male",
+    },
+  ],
+  enrollments: [
+    {
+      sessionName: "2026/2027",
+      admissionNo: "A100",
+      className: "JSS1",
+      department: null,
+      enrollmentStatus: "Enrolled",
+    },
+    {
+      sessionName: "2026/2027",
+      admissionNo: "B200",
+      className: "JSS2",
+      department: null,
+      enrollmentStatus: "Withdrawn",
+    },
   ],
 };
 
@@ -80,7 +132,19 @@ const main = async () => {
       PRAGMA foreign_keys = ON;
       CREATE TABLE academic_sessions (session_id INTEGER PRIMARY KEY, session_name TEXT UNIQUE NOT NULL);
       CREATE TABLE academic_terms (term_id INTEGER PRIMARY KEY, session_id INTEGER NOT NULL, term_name TEXT NOT NULL, term_number INTEGER NOT NULL);
-      CREATE TABLE students (admission_no TEXT PRIMARY KEY);
+      CREATE TABLE students (
+        admission_no TEXT PRIMARY KEY, surname TEXT NOT NULL, middle_name TEXT,
+        last_name TEXT NOT NULL, class_name TEXT NOT NULL, department TEXT,
+        gender TEXT, password_hash TEXT
+      );
+      CREATE TABLE academic_session_enrollments (
+        session_id INTEGER NOT NULL, admission_no TEXT NOT NULL,
+        class_name TEXT NOT NULL, department TEXT,
+        enrollment_status TEXT NOT NULL DEFAULT 'Enrolled',
+        UNIQUE(session_id, admission_no),
+        FOREIGN KEY(session_id) REFERENCES academic_sessions(session_id),
+        FOREIGN KEY(admission_no) REFERENCES students(admission_no)
+      );
       CREATE TABLE attendance_days (
         attendance_day_id INTEGER PRIMARY KEY, term_id INTEGER NOT NULL,
         attendance_date TEXT NOT NULL, is_holiday INTEGER NOT NULL DEFAULT 0,
@@ -97,7 +161,8 @@ const main = async () => {
       );
       INSERT INTO academic_sessions VALUES (1, '2026/2027');
       INSERT INTO academic_terms VALUES (11, 1, 'First Term', 1);
-      INSERT INTO students VALUES ('A100');
+      INSERT INTO students (admission_no, surname, last_name, class_name)
+        VALUES ('A100', 'One', 'Existing', 'JSS1');
       INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
         VALUES (11, '2026-09-01', 0, NULL);
       INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
@@ -106,10 +171,12 @@ const main = async () => {
 
     const result = await importAttendance(databasePath, transfer);
     assert.deepEqual(result, {
-      daysAdded: 1,
+      daysAdded: 2,
       daysSkipped: 1,
-      recordsAdded: 1,
+      recordsAdded: 2,
       recordsSkipped: 1,
+      enrollmentsAdded: 2,
+      studentsAdded: 1,
     });
     const existingRecord = await get(
       `SELECT status FROM attendance_records WHERE term_id = 11 AND attendance_date = '2026-09-01' AND admission_no = 'A100'`,
@@ -119,25 +186,69 @@ const main = async () => {
       `SELECT status FROM attendance_records WHERE term_id = 11 AND attendance_date = '2026-09-02' AND admission_no = 'A100'`,
     );
     assert.equal(importedRecord.status, "A");
+    const addedStudent = await get(
+      `SELECT surname, middle_name, last_name, class_name, gender, password_hash
+       FROM students WHERE admission_no = 'B200'`,
+    );
+    assert.deepEqual(addedStudent, {
+      surname: "Two",
+      middle_name: "Local",
+      last_name: "Only",
+      class_name: "JSS2",
+      gender: "Male",
+      password_hash: null,
+    });
+    const addedEnrollment = await get(
+      `SELECT class_name, enrollment_status FROM academic_session_enrollments
+       WHERE session_id = 1 AND admission_no = 'B200'`,
+    );
+    assert.deepEqual(addedEnrollment, {
+      class_name: "JSS2",
+      enrollment_status: "Withdrawn",
+    });
 
-    const missingStudentTransfer = {
+    const missingTermTransfer = {
       ...transfer,
+      students: [
+        ...transfer.students,
+        {
+          admissionNo: "C300",
+          surname: "Three",
+          middleName: null,
+          lastName: "Unimported",
+          className: "JSS1",
+          department: null,
+          gender: "Male",
+        },
+      ],
       records: [
         {
           ...transfer.records[0],
-          date: "2026-09-03",
-          admissionNo: "MISSING",
+          sessionName: "Missing Session",
+        },
+      ],
+      enrollments: [
+        ...transfer.enrollments,
+        {
+          sessionName: "Missing Session",
+          admissionNo: "A100",
+          className: "JSS1",
+          enrollmentStatus: "Enrolled",
         },
       ],
     };
     await assert.rejects(
-      importAttendance(databasePath, missingStudentTransfer),
+      importAttendance(databasePath, missingTermTransfer),
       AttendanceTransferError,
     );
     const rolledBackDay = await get(
-      `SELECT attendance_day_id FROM attendance_days WHERE term_id = 11 AND attendance_date = '2026-09-03'`,
+      `SELECT attendance_day_id FROM attendance_days WHERE term_id = 11 AND attendance_date = '2026-09-04'`,
     );
     assert.equal(rolledBackDay, undefined, "Unmatched imports must roll back atomically");
+    const rolledBackStudent = await get(
+      `SELECT admission_no FROM students WHERE admission_no = 'C300'`,
+    );
+    assert.equal(rolledBackStudent, undefined, "Rejected imports must not add roster rows");
 
     assert.throws(
       () => validateTransfer({ ...transfer, records: [{ ...transfer.records[0], status: "X" }] }),

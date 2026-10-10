@@ -2,7 +2,9 @@ const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
 
 const MAX_TRANSFER_ROWS = 200000;
-const TRANSFER_FORMAT = "tlmps-attendance-v1";
+const TRANSFER_FORMAT = "tlmps-attendance-v2";
+const ENROLLMENT_STATUSES = new Set(["Enrolled", "Graduated", "Alumni", "Withdrawn"]);
+
 class AttendanceTransferError extends Error {
   constructor(message) {
     super(message);
@@ -20,10 +22,23 @@ const validateTransfer = (transfer) => {
   if (!transfer || transfer.format !== TRANSFER_FORMAT) {
     throw new AttendanceTransferError("This is not a supported TLMPS attendance export.");
   }
-  if (!Array.isArray(transfer.days) || !Array.isArray(transfer.records)) {
-    throw new AttendanceTransferError("The attendance export is missing its days or records.");
+  if (
+    !Array.isArray(transfer.days) ||
+    !Array.isArray(transfer.records) ||
+    !Array.isArray(transfer.students) ||
+    !Array.isArray(transfer.enrollments)
+  ) {
+    throw new AttendanceTransferError(
+      "The export must contain attendance, roster, and enrollment data.",
+    );
   }
-  if (transfer.days.length + transfer.records.length > MAX_TRANSFER_ROWS) {
+  if (
+    transfer.days.length +
+      transfer.records.length +
+      transfer.students.length +
+      transfer.enrollments.length >
+    MAX_TRANSFER_ROWS
+  ) {
     throw new AttendanceTransferError("The attendance export exceeds the allowed size.");
   }
 
@@ -80,6 +95,71 @@ const validateTransfer = (transfer) => {
     "attendance record",
   );
 
+  uniqueRows(
+    transfer.students,
+    (student) =>
+      typeof student.admissionNo === "string" &&
+      student.admissionNo.trim().length > 0 &&
+      student.admissionNo.length <= 100 &&
+      typeof student.surname === "string" &&
+      student.surname.trim().length > 0 &&
+      student.surname.length <= 100 &&
+      (student.middleName == null ||
+        (typeof student.middleName === "string" && student.middleName.length <= 100)) &&
+      typeof student.lastName === "string" &&
+      student.lastName.trim().length > 0 &&
+      student.lastName.length <= 100 &&
+      typeof student.className === "string" &&
+      student.className.trim().length > 0 &&
+      student.className.length <= 100 &&
+      (student.department == null ||
+        (typeof student.department === "string" && student.department.length <= 100)) &&
+      (student.gender == null ||
+        (typeof student.gender === "string" && student.gender.length <= 30))
+        ? student.admissionNo
+        : null,
+    "student roster entry",
+  );
+
+  uniqueRows(
+    transfer.enrollments,
+    (enrollment) =>
+      typeof enrollment.sessionName === "string" &&
+      enrollment.sessionName.trim().length > 0 &&
+      enrollment.sessionName.length <= 100 &&
+      typeof enrollment.admissionNo === "string" &&
+      enrollment.admissionNo.trim().length > 0 &&
+      enrollment.admissionNo.length <= 100 &&
+      typeof enrollment.className === "string" &&
+      enrollment.className.trim().length > 0 &&
+      enrollment.className.length <= 100 &&
+      (enrollment.department == null ||
+        (typeof enrollment.department === "string" && enrollment.department.length <= 100)) &&
+      ENROLLMENT_STATUSES.has(enrollment.enrollmentStatus)
+        ? JSON.stringify([enrollment.sessionName, enrollment.admissionNo])
+        : null,
+    "session enrollment",
+  );
+
+  const studentIds = new Set(transfer.students.map((student) => student.admissionNo));
+  const enrollmentKeys = new Set(
+    transfer.enrollments.map((enrollment) =>
+      JSON.stringify([enrollment.sessionName, enrollment.admissionNo]),
+    ),
+  );
+  transfer.records.forEach((record) => {
+    if (!studentIds.has(record.admissionNo)) {
+      throw new AttendanceTransferError(
+        `The export has attendance for ${record.admissionNo} but no matching roster entry.`,
+      );
+    }
+    if (!enrollmentKeys.has(JSON.stringify([record.sessionName, record.admissionNo]))) {
+      throw new AttendanceTransferError(
+        `The export has attendance for ${record.admissionNo} in ${record.sessionName} but no matching session enrollment.`,
+      );
+    }
+  });
+
   return transfer;
 };
 
@@ -106,10 +186,11 @@ const importAttendance = async (databasePath, rawTransfer) => {
     await run(db, "BEGIN IMMEDIATE");
     transactionOpen = true;
 
-    const [sessions, terms, students] = await Promise.all([
+    const [sessions, terms, students, enrollments] = await Promise.all([
       queryAll(db, `SELECT session_id, session_name FROM academic_sessions`),
       queryAll(db, `SELECT session_id, term_id, term_name, term_number FROM academic_terms`),
       queryAll(db, `SELECT admission_no FROM students`),
+      queryAll(db, `SELECT session_id, admission_no FROM academic_session_enrollments`),
     ]);
     const sessionIds = new Map(sessions.map((session) => [session.session_name, session.session_id]));
     const termIds = new Map(
@@ -119,6 +200,11 @@ const importAttendance = async (databasePath, rawTransfer) => {
       ]),
     );
     const studentIds = new Set(students.map((student) => student.admission_no));
+    const enrollmentKeys = new Set(
+      enrollments.map((enrollment) =>
+        JSON.stringify([enrollment.session_id, enrollment.admission_no]),
+      ),
+    );
 
     const findTermId = (row) => {
       const sessionId = sessionIds.get(row.sessionName);
@@ -139,17 +225,64 @@ const importAttendance = async (databasePath, rawTransfer) => {
     const missingTerms =
       mappedDays.filter((day) => day.termId == null).length +
       mappedRecords.filter((record) => record.termId == null).length;
-    const missingStudents = mappedRecords.filter(
-      (record) => !studentIds.has(record.admissionNo),
+    const sourceStudentIds = new Set(transfer.students.map((student) => student.admissionNo));
+    const missingSourceStudents = mappedRecords.filter(
+      (record) => !sourceStudentIds.has(record.admissionNo),
     ).length;
-    if (missingTerms || missingStudents) {
+    const missingSourceEnrollments = transfer.enrollments.filter(
+      (enrollment) => !sessionIds.has(enrollment.sessionName),
+    ).length;
+    if (missingTerms || missingSourceStudents || missingSourceEnrollments) {
       throw new AttendanceTransferError(
-        `Nothing was imported. ${missingTerms} attendance rows could not be matched to a Render session/term and ${missingStudents} records could not be matched to a Render student.`,
+        `Nothing was imported. ${missingTerms} attendance rows could not be matched to a Render session/term, ${missingSourceStudents} referenced students are missing from the export, and ${missingSourceEnrollments} enrollments reference sessions not on Render.`,
       );
     }
 
     let daysAdded = 0;
     let recordsAdded = 0;
+    let studentsAdded = 0;
+    let enrollmentsAdded = 0;
+
+    for (const student of transfer.students) {
+      if (studentIds.has(student.admissionNo)) continue;
+      studentsAdded += await run(
+        db,
+        `INSERT INTO students
+           (admission_no, surname, middle_name, last_name, class_name, department, gender)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(admission_no) DO NOTHING`,
+        [
+          student.admissionNo,
+          student.surname,
+          student.middleName || null,
+          student.lastName,
+          student.className,
+          student.department || null,
+          student.gender || null,
+        ],
+      );
+    }
+
+    for (const enrollment of transfer.enrollments) {
+      const sessionId = sessionIds.get(enrollment.sessionName);
+      if (sessionId == null) continue;
+      if (enrollmentKeys.has(JSON.stringify([sessionId, enrollment.admissionNo]))) continue;
+      enrollmentsAdded += await run(
+        db,
+        `INSERT INTO academic_session_enrollments
+           (session_id, admission_no, class_name, department, enrollment_status)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(session_id, admission_no) DO NOTHING`,
+        [
+          sessionId,
+          enrollment.admissionNo,
+          enrollment.className,
+          enrollment.department || null,
+          enrollment.enrollmentStatus,
+        ],
+      );
+    }
+
     for (const day of mappedDays) {
       daysAdded += await run(
         db,
@@ -172,6 +305,8 @@ const importAttendance = async (databasePath, rawTransfer) => {
     await run(db, "COMMIT");
     transactionOpen = false;
     return {
+      studentsAdded,
+      enrollmentsAdded,
       daysAdded,
       daysSkipped: mappedDays.length - daysAdded,
       recordsAdded,

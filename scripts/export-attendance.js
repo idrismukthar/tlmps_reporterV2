@@ -1,7 +1,11 @@
 const fs = require("fs");
 const path = require("path");
 const sqlite3 = require("sqlite3").verbose();
-const { TRANSFER_FORMAT, defaultDatabasePath } = require("../services/attendanceTransfer");
+const {
+  TRANSFER_FORMAT,
+  defaultDatabasePath,
+  validateTransfer,
+} = require("../services/attendanceTransfer");
 
 const outputPath = process.argv[2];
 const databasePath = path.resolve(process.argv[3] || process.env.DB_PATH || defaultDatabasePath);
@@ -40,24 +44,64 @@ const db = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY, (openError)
           [],
           (recordsError, records) => {
             if (recordsError) return closeWithError(recordsError);
-            const transfer = {
+            db.all(
+              `SELECT DISTINCT s.admission_no AS admissionNo,
+                      s.surname, s.middle_name AS middleName,
+                      s.last_name AS lastName, s.class_name AS className,
+                      s.department, s.gender
+               FROM students s
+               JOIN attendance_records r ON r.admission_no = s.admission_no
+               ORDER BY s.admission_no`,
+              [],
+              (studentsError, students) => {
+                if (studentsError) return closeWithError(studentsError);
+                db.all(
+                  `SELECT DISTINCT a.session_name AS sessionName,
+                          e.admission_no AS admissionNo, e.class_name AS className,
+                          e.department, e.enrollment_status AS enrollmentStatus
+                   FROM attendance_records r
+                   JOIN academic_terms t ON t.term_id = r.term_id
+                   JOIN academic_sessions a ON a.session_id = t.session_id
+                   JOIN academic_session_enrollments e
+                     ON e.session_id = t.session_id AND e.admission_no = r.admission_no
+                   ORDER BY a.session_name, e.admission_no`,
+                  [],
+                  (enrollmentsError, enrollments) => {
+                    if (enrollmentsError) return closeWithError(enrollmentsError);
+                    const transfer = {
               format: TRANSFER_FORMAT,
               exportedAt: new Date().toISOString(),
               days,
               records,
-            };
-            fs.writeFile(outputPath, JSON.stringify(transfer), { flag: "wx", mode: 0o600 }, (writeError) => {
-              if (writeError) return closeWithError(writeError);
-              console.log(
-                `Created attendance-only export with ${days.length} days and ${records.length} records.`,
-              );
-              db.close((closeError) => {
-                if (closeError) {
-                  console.error("Could not close the local database:", closeError.message);
-                  process.exitCode = 1;
-                }
-              });
-            });
+                      students,
+                      enrollments,
+                    };
+                    try {
+                      validateTransfer(transfer);
+                    } catch (validationError) {
+                      return closeWithError(validationError);
+                    }
+                    fs.writeFile(
+                      outputPath,
+                      JSON.stringify(transfer),
+                      { flag: "wx", mode: 0o600 },
+                      (writeError) => {
+                        if (writeError) return closeWithError(writeError);
+                        console.log(
+                          `Created an attendance-only export with ${days.length} days, ${records.length} records, ${students.length} roster entries, and ${enrollments.length} enrollment rows.`,
+                        );
+                        db.close((closeError) => {
+                          if (closeError) {
+                            console.error("Could not close the local database:", closeError.message);
+                            process.exitCode = 1;
+                          }
+                        });
+                      },
+                    );
+                  },
+                );
+              },
+            );
           },
         );
       },
