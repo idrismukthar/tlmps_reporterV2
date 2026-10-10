@@ -7,8 +7,19 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const nigeriaStates = require("../static/states.json");
 const studentRoutes = require("./student");
+const {
+  AttendanceTransferError,
+  defaultDatabasePath,
+  importAttendance,
+} = require("../services/attendanceTransfer");
+
+const attendanceTransferUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+});
 
 // Auth Protection
 const requireAuth = (req, res, next) => {
@@ -1660,6 +1671,59 @@ const attendanceTerm = (sessionId, termId, callback) => {
     callback,
   );
 };
+
+router.get("/attendance/import", (req, res) => {
+  const token = crypto.randomBytes(32).toString("hex");
+  req.session.attendanceImportToken = token;
+  req.session.attendanceImportTokenExpiresAt = Date.now() + 15 * 60 * 1000;
+  res.render("superadmin/attendance/import", { token });
+});
+
+router.post(
+  "/attendance/import",
+  attendanceTransferUpload.single("attendanceFile"),
+  async (req, res) => {
+    const isTokenValid =
+      typeof req.session.attendanceImportToken === "string" &&
+      req.session.attendanceImportToken === req.body.token &&
+      req.session.attendanceImportTokenExpiresAt > Date.now();
+    delete req.session.attendanceImportToken;
+    delete req.session.attendanceImportTokenExpiresAt;
+    if (!isTokenValid) return res.status(403).send("Refresh the attendance import page and try again.");
+    if (!req.file) return res.status(400).send("Choose an attendance export file to import.");
+
+    let transfer;
+    try {
+      transfer = JSON.parse(req.file.buffer.toString("utf8"));
+    } catch (error) {
+      return res.status(400).render("superadmin/attendance/import-result", {
+        error: "The selected file is not valid JSON.",
+        result: null,
+      });
+    }
+
+    try {
+      const result = await importAttendance(
+        process.env.DB_PATH || defaultDatabasePath,
+        transfer,
+      );
+      return res.render("superadmin/attendance/import-result", {
+        error: null,
+        result,
+      });
+    } catch (error) {
+      console.error("Attendance transfer failed:", error.message);
+      const status = error instanceof AttendanceTransferError ? 400 : 500;
+      return res.status(status).render("superadmin/attendance/import-result", {
+        error:
+          status === 400
+            ? error.message
+            : "The attendance import failed and was rolled back. Please retry or contact support.",
+        result: null,
+      });
+    }
+  },
+);
 
 router.get("/attendance", (req, res) => {
   db.all(

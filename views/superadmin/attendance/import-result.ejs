@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attendance Import Result - TLMPS</title>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f0fa;color:#1e1b26;margin:0}.top{background:#3b1c56;color:#fff;padding:20px 6%;display:flex;justify-content:space-between;align-items:center}.top a{color:#fff}.wrap{max-width:760px;margin:35px auto;padding:0 20px}.card{background:#fff;border:1px solid #e2d4f0;border-radius:12px;padding:24px;box-shadow:0 2px 8px #3b1c5612}.error{color:#991b1b;background:#fef2f2;padding:14px;line-height:1.5}.success{color:#166534;background:#f0fdf4;padding:14px;line-height:1.7}a.button{display:inline-block;background:#5c2d91;border-radius:7px;color:#fff;padding:11px 16px;margin-top:18px;text-decoration:none}
+  </style>
+</head>
+<body>
+  <header class="top"><strong>TLMPS Attendance Transfer</strong><a href="/superadmin/attendance">← Attendance</a></header>
+  <main class="wrap"><section class="card">
+    <% if (error) { %>
+      <h1>Import was not completed</h1>
+      <p class="error"><%= error %></p>
+    <% } else { %>
+      <h1>Attendance transfer complete</h1>
+      <p class="success">
+        Attendance days added: <strong><%= result.daysAdded %></strong><br>
+        Existing days preserved: <strong><%= result.daysSkipped %></strong><br>
+        Attendance records added: <strong><%= result.recordsAdded %></strong><br>
+        Existing records preserved: <strong><%= result.recordsSkipped %></strong>
+      </p>
+    <% } %>
+    <a class="button" href="/superadmin/attendance">Return to attendance</a>
+  </section></main>
+</body>
+</html>
