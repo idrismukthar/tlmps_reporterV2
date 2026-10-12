@@ -18,12 +18,16 @@
       <h1>Attendance transfer complete</h1>
       <p class="success">
         New roster entries added: <strong><%= result.studentsAdded %></strong><br>
+        Existing roster entries synchronized: <strong><%= result.studentsUpdated %></strong><br>
         Session enrollments added: <strong><%= result.enrollmentsAdded %></strong><br>
-        Enrollments marked withdrawn: <strong><%= result.enrollmentStatusesUpdated %></strong><br>
+        Existing enrollments synchronized: <strong><%= result.enrollmentsUpdated %></strong>
+        (status changes: <%= result.enrollmentStatusesUpdated %>)<br>
         Attendance days added: <strong><%= result.daysAdded %></strong><br>
-        Existing days preserved: <strong><%= result.daysSkipped %></strong><br>
+        Attendance days corrected: <strong><%= result.daysUpdated %></strong><br>
+        Unchanged attendance days: <strong><%= result.daysSkipped %></strong><br>
         Attendance records added: <strong><%= result.recordsAdded %></strong><br>
-        Existing records preserved: <strong><%= result.recordsSkipped %></strong>
+        Existing attendance records corrected: <strong><%= result.recordsUpdated %></strong><br>
+        Unchanged attendance records: <strong><%= result.recordsSkipped %></strong>
       </p>
     <% } %>
     <a class="button" href="/superadmin/attendance">Return to attendance</a>

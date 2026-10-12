@@ -189,8 +189,16 @@ const importAttendance = async (databasePath, rawTransfer) => {
     const [sessions, terms, students, enrollments] = await Promise.all([
       queryAll(db, `SELECT session_id, session_name FROM academic_sessions`),
       queryAll(db, `SELECT session_id, term_id, term_name, term_number FROM academic_terms`),
-      queryAll(db, `SELECT admission_no FROM students`),
-      queryAll(db, `SELECT session_id, admission_no FROM academic_session_enrollments`),
+      queryAll(
+        db,
+        `SELECT admission_no, surname, middle_name, last_name, class_name, department, gender
+         FROM students`,
+      ),
+      queryAll(
+        db,
+        `SELECT session_id, admission_no, class_name, department, enrollment_status
+         FROM academic_session_enrollments`,
+      ),
     ]);
     const sessionIds = new Map(sessions.map((session) => [session.session_name, session.session_id]));
     const termIds = new Map(
@@ -199,11 +207,12 @@ const importAttendance = async (databasePath, rawTransfer) => {
         term.term_id,
       ]),
     );
-    const studentIds = new Set(students.map((student) => student.admission_no));
-    const enrollmentKeys = new Set(
-      enrollments.map((enrollment) =>
+    const studentRows = new Map(students.map((student) => [student.admission_no, student]));
+    const enrollmentRows = new Map(
+      enrollments.map((enrollment) => [
         JSON.stringify([enrollment.session_id, enrollment.admission_no]),
-      ),
+        enrollment,
+      ]),
     );
 
     const findTermId = (row) => {
@@ -239,43 +248,82 @@ const importAttendance = async (databasePath, rawTransfer) => {
     }
 
     let daysAdded = 0;
+    let daysUpdated = 0;
     let recordsAdded = 0;
+    let recordsUpdated = 0;
     let studentsAdded = 0;
+    let studentsUpdated = 0;
     let enrollmentsAdded = 0;
+    let enrollmentsUpdated = 0;
     let enrollmentStatusesUpdated = 0;
 
     for (const student of transfer.students) {
-      if (studentIds.has(student.admissionNo)) continue;
+      const sourceFields = [
+        student.surname,
+        student.middleName || null,
+        student.lastName,
+        student.className,
+        student.department || null,
+        student.gender || null,
+      ];
+      const existing = studentRows.get(student.admissionNo);
+      if (existing) {
+        const existingFields = [
+          existing.surname,
+          existing.middle_name,
+          existing.last_name,
+          existing.class_name,
+          existing.department,
+          existing.gender,
+        ];
+        if (sourceFields.some((value, index) => value !== existingFields[index])) {
+          studentsUpdated += await run(
+            db,
+            `UPDATE students
+             SET surname = ?, middle_name = ?, last_name = ?, class_name = ?,
+                 department = ?, gender = ?
+             WHERE admission_no = ?`,
+            [...sourceFields, student.admissionNo],
+          );
+        }
+        continue;
+      }
       studentsAdded += await run(
         db,
         `INSERT INTO students
            (admission_no, surname, middle_name, last_name, class_name, department, gender)
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(admission_no) DO NOTHING`,
-        [
-          student.admissionNo,
-          student.surname,
-          student.middleName || null,
-          student.lastName,
-          student.className,
-          student.department || null,
-          student.gender || null,
-        ],
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [student.admissionNo, ...sourceFields],
       );
     }
 
     for (const enrollment of transfer.enrollments) {
       const sessionId = sessionIds.get(enrollment.sessionName);
       if (sessionId == null) continue;
-      if (enrollmentKeys.has(JSON.stringify([sessionId, enrollment.admissionNo]))) {
-        if (enrollment.enrollmentStatus === "Withdrawn") {
-          enrollmentStatusesUpdated += await run(
+      const key = JSON.stringify([sessionId, enrollment.admissionNo]);
+      const existing = enrollmentRows.get(key);
+      if (existing) {
+        const sourceDepartment = enrollment.department || null;
+        const sourceStatus = enrollment.enrollmentStatus;
+        const changed =
+          existing.class_name !== enrollment.className ||
+          existing.department !== sourceDepartment ||
+          existing.enrollment_status !== sourceStatus;
+        if (changed) {
+          enrollmentsUpdated += await run(
             db,
             `UPDATE academic_session_enrollments
-             SET enrollment_status = 'Withdrawn'
-             WHERE session_id = ? AND admission_no = ? AND enrollment_status = 'Enrolled'`,
-            [sessionId, enrollment.admissionNo],
+             SET class_name = ?, department = ?, enrollment_status = ?
+             WHERE session_id = ? AND admission_no = ?`,
+            [
+              enrollment.className,
+              sourceDepartment,
+              sourceStatus,
+              sessionId,
+              enrollment.admissionNo,
+            ],
           );
+          if (existing.enrollment_status !== sourceStatus) enrollmentStatusesUpdated += 1;
         }
         continue;
       }
@@ -296,34 +344,74 @@ const importAttendance = async (databasePath, rawTransfer) => {
     }
 
     for (const day of mappedDays) {
-      daysAdded += await run(
+      const inserted = await run(
         db,
         `INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
          VALUES (?, ?, ?, ?)
          ON CONFLICT(term_id, attendance_date) DO NOTHING`,
         [day.termId, day.date, day.isHoliday, day.holidayName || null],
       );
+      if (inserted) {
+        daysAdded += inserted;
+      } else {
+        daysUpdated += await run(
+          db,
+          `UPDATE attendance_days
+           SET is_holiday = ?, holiday_name = ?
+           WHERE term_id = ? AND attendance_date = ?
+             AND (is_holiday IS NOT ? OR holiday_name IS NOT ?)`,
+          [
+            day.isHoliday,
+            day.holidayName || null,
+            day.termId,
+            day.date,
+            day.isHoliday,
+            day.holidayName || null,
+          ],
+        );
+      }
     }
     for (const record of mappedRecords) {
-      recordsAdded += await run(
+      const inserted = await run(
         db,
         `INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
          VALUES (?, ?, ?, ?)
          ON CONFLICT(term_id, attendance_date, admission_no) DO NOTHING`,
         [record.termId, record.date, record.admissionNo, record.status],
       );
+      if (inserted) {
+        recordsAdded += inserted;
+      } else {
+        recordsUpdated += await run(
+          db,
+          `UPDATE attendance_records SET status = ?
+           WHERE term_id = ? AND attendance_date = ? AND admission_no = ?
+             AND status IS NOT ?`,
+          [
+            record.status,
+            record.termId,
+            record.date,
+            record.admissionNo,
+            record.status,
+          ],
+        );
+      }
     }
 
     await run(db, "COMMIT");
     transactionOpen = false;
     return {
       studentsAdded,
+      studentsUpdated,
       enrollmentsAdded,
+      enrollmentsUpdated,
       enrollmentStatusesUpdated,
       daysAdded,
-      daysSkipped: mappedDays.length - daysAdded,
+      daysUpdated,
+      daysSkipped: mappedDays.length - daysAdded - daysUpdated,
       recordsAdded,
-      recordsSkipped: mappedRecords.length - recordsAdded,
+      recordsUpdated,
+      recordsSkipped: mappedRecords.length - recordsAdded - recordsUpdated,
     };
   } catch (error) {
     if (transactionOpen) {

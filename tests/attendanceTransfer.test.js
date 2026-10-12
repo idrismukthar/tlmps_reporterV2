@@ -162,12 +162,12 @@ const main = async () => {
       INSERT INTO academic_sessions VALUES (1, '2026/2027');
       INSERT INTO academic_terms VALUES (11, 1, 'First Term', 1);
       INSERT INTO students (admission_no, surname, last_name, class_name)
-        VALUES ('A100', 'One', 'Existing', 'JSS1');
+        VALUES ('A100', 'Old', 'Name', 'JSS2');
       INSERT INTO academic_session_enrollments
         (session_id, admission_no, class_name, enrollment_status)
-        VALUES (1, 'A100', 'JSS1', 'Enrolled');
+        VALUES (1, 'A100', 'JSS2', 'Enrolled');
       INSERT INTO attendance_days (term_id, attendance_date, is_holiday, holiday_name)
-        VALUES (11, '2026-09-01', 0, NULL);
+        VALUES (11, '2026-09-01', 1, 'Incorrect holiday');
       INSERT INTO attendance_records (term_id, attendance_date, admission_no, status)
         VALUES (11, '2026-09-01', 'A100', 'A');
     `);
@@ -175,17 +175,34 @@ const main = async () => {
     const result = await importAttendance(databasePath, transfer);
     assert.deepEqual(result, {
       daysAdded: 2,
-      daysSkipped: 1,
+      daysUpdated: 1,
+      daysSkipped: 0,
       recordsAdded: 2,
-      recordsSkipped: 1,
+      recordsUpdated: 1,
+      recordsSkipped: 0,
       enrollmentsAdded: 1,
+      enrollmentsUpdated: 1,
       enrollmentStatusesUpdated: 1,
       studentsAdded: 1,
+      studentsUpdated: 1,
     });
     const existingRecord = await get(
       `SELECT status FROM attendance_records WHERE term_id = 11 AND attendance_date = '2026-09-01' AND admission_no = 'A100'`,
     );
-    assert.equal(existingRecord.status, "A", "Existing Render attendance must be preserved");
+    assert.equal(existingRecord.status, "P", "Local attendance must replace conflicting Render marks");
+    const correctedDay = await get(
+      `SELECT is_holiday, holiday_name FROM attendance_days
+       WHERE term_id = 11 AND attendance_date = '2026-09-01'`,
+    );
+    assert.deepEqual(correctedDay, { is_holiday: 0, holiday_name: null });
+    const correctedStudent = await get(
+      `SELECT surname, last_name, class_name FROM students WHERE admission_no = 'A100'`,
+    );
+    assert.deepEqual(correctedStudent, {
+      surname: "One",
+      last_name: "Existing",
+      class_name: "JSS1",
+    });
     const importedRecord = await get(
       `SELECT status FROM attendance_records WHERE term_id = 11 AND attendance_date = '2026-09-02' AND admission_no = 'A100'`,
     );
