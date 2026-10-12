@@ -45,34 +45,53 @@ const db = new sqlite3.Database(databasePath, sqlite3.OPEN_READONLY, (openError)
           (recordsError, records) => {
             if (recordsError) return closeWithError(recordsError);
             db.all(
-              `SELECT DISTINCT s.admission_no AS admissionNo,
+              `WITH sessions_with_attendance AS (
+                 SELECT DISTINCT t.session_id
+                 FROM academic_terms t
+                 WHERE EXISTS (
+                   SELECT 1 FROM attendance_records r WHERE r.term_id = t.term_id
+                 ) OR EXISTS (
+                   SELECT 1 FROM attendance_days d WHERE d.term_id = t.term_id
+                 )
+               )
+               SELECT DISTINCT s.admission_no AS admissionNo,
                       s.surname, s.middle_name AS middleName,
                       s.last_name AS lastName, s.class_name AS className,
                       s.department, s.gender
                FROM students s
-               JOIN attendance_records r ON r.admission_no = s.admission_no
+               JOIN academic_session_enrollments e
+                 ON e.admission_no = s.admission_no
+               JOIN sessions_with_attendance scope
+                 ON scope.session_id = e.session_id
                ORDER BY s.admission_no`,
               [],
               (studentsError, students) => {
                 if (studentsError) return closeWithError(studentsError);
                 db.all(
-                  `SELECT DISTINCT a.session_name AS sessionName,
+                  `WITH sessions_with_attendance AS (
+                     SELECT DISTINCT t.session_id
+                     FROM academic_terms t
+                     WHERE EXISTS (
+                       SELECT 1 FROM attendance_records r WHERE r.term_id = t.term_id
+                     ) OR EXISTS (
+                       SELECT 1 FROM attendance_days d WHERE d.term_id = t.term_id
+                     )
+                   )
+                   SELECT a.session_name AS sessionName,
                           e.admission_no AS admissionNo, e.class_name AS className,
                           e.department, e.enrollment_status AS enrollmentStatus
-                   FROM attendance_records r
-                   JOIN academic_terms t ON t.term_id = r.term_id
-                   JOIN academic_sessions a ON a.session_id = t.session_id
-                   JOIN academic_session_enrollments e
-                     ON e.session_id = t.session_id AND e.admission_no = r.admission_no
+                   FROM academic_session_enrollments e
+                   JOIN academic_sessions a ON a.session_id = e.session_id
+                   JOIN sessions_with_attendance scope ON scope.session_id = e.session_id
                    ORDER BY a.session_name, e.admission_no`,
                   [],
                   (enrollmentsError, enrollments) => {
                     if (enrollmentsError) return closeWithError(enrollmentsError);
                     const transfer = {
-              format: TRANSFER_FORMAT,
-              exportedAt: new Date().toISOString(),
-              days,
-              records,
+                      format: TRANSFER_FORMAT,
+                      exportedAt: new Date().toISOString(),
+                      days,
+                      records,
                       students,
                       enrollments,
                     };

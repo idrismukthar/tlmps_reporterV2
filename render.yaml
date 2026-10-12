@@ -2,13 +2,19 @@ services:
   - type: web
     name: tlmps-portal
     runtime: node
-    plan: free
+    plan: starter
+    disk:
+      name: tlmps-data
+      mountPath: /var/data
+      sizeGB: 1
     buildCommand: npm ci
     startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DB_PATH
+        value: /var/data/tlmps.db
       - key: NODE_VERSION
         value: 20.19.1
       - key: SESSION_SECRET
