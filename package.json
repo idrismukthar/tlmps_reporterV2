@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node app.js",
-    "test": "node tests/studentPerformance.test.js && node tests/promotion.test.js && node tests/attendanceTransfer.test.js && node tests/attendanceSummary.test.js && node tests/exportAttendance.test.js"
+    "test": "node tests/studentPerformance.test.js && node tests/promotion.test.js && node tests/attendanceTransfer.test.js && node tests/attendanceSummary.test.js && node tests/exportAttendance.test.js && node tests/attendanceDates.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",

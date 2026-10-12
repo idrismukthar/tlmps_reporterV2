@@ -11,6 +11,7 @@ const multer = require("multer");
 const nigeriaStates = require("../static/states.json");
 const studentRoutes = require("./student");
 const { getStudentAttendanceSummary } = require("../services/attendanceSummary");
+const { getNextAttendanceWeekday } = require("../services/attendanceDates");
 const {
   AttendanceTransferError,
   defaultDatabasePath,
@@ -1797,7 +1798,7 @@ router.get("/attendance/:session_id/:term_id/class", (req, res) => {
     const requestedDate = String(req.query.date || "").trim();
     const selectedDate = dates.includes(requestedDate)
       ? requestedDate
-      : dates[0] || requestedDate;
+      : getNextAttendanceWeekday();
     if (req.query.view === "register") {
       return db.all(
         `SELECT e.admission_no, e.class_name, s.surname, s.middle_name, s.last_name, s.gender
@@ -1864,7 +1865,8 @@ router.get("/attendance/:session_id/:term_id/class", (req, res) => {
       );
     }
     db.all(
-      `SELECT e.admission_no, e.class_name, s.surname, s.middle_name, s.last_name
+      `SELECT e.admission_no, e.class_name, s.surname, s.middle_name, s.last_name,
+              s.passport_url
        FROM academic_session_enrollments e
        JOIN students s ON s.admission_no = e.admission_no
        WHERE e.session_id = ? AND e.class_name = ? AND e.enrollment_status = 'Enrolled'
@@ -1906,7 +1908,13 @@ router.get("/attendance/:session_id/:term_id/class", (req, res) => {
                   dayMap,
                   recordMap,
                   students: students || [],
-                  error: dates.length ? null : "Set valid resumption and vacation dates for this term before recording attendance.",
+                  hasExistingAttendance: (records || []).length > 0,
+                  canMarkSelectedDate: dates.includes(selectedDate),
+                  error: !dates.length
+                    ? "Set valid resumption and vacation dates for this term before recording attendance."
+                    : !dates.includes(selectedDate)
+                      ? "The default date is outside this term. Choose a weekday within the term to record attendance."
+                      : null,
                 });
               },
             );
