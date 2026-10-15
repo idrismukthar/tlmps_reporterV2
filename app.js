@@ -99,7 +99,7 @@ try {
 
 // 5. Student Login Home Page
 app.get("/", (req, res) => {
-  res.render("student/login", { error: null });
+  res.render("student/login", { error: null, success: null });
 });
 
 // Quick-links dashboard
