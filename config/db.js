@@ -1,3 +1,9 @@
+if (process.env.DB_DRIVER === "postgres" || process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required when DB_DRIVER=postgres.");
+  }
+  module.exports = require("./postgresDb");
+} else {
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
@@ -354,3 +360,4 @@ db.serialize(() => {
 });
 
 module.exports = db;
+}

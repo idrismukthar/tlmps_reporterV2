@@ -8,7 +8,11 @@
   },
   "scripts": {
     "start": "node app.js",
-    "test": "node tests/studentPerformance.test.js && node tests/promotion.test.js && node tests/attendanceTransfer.test.js && node tests/attendanceSummary.test.js && node tests/exportAttendance.test.js && node tests/attendanceDates.test.js"
+    "db:migrate:export": "node scripts/prepare-supabase-migration.js",
+    "db:migrate:import": "node scripts/import-supabase-migration.js",
+    "db:migrate:verify": "node scripts/verify-supabase-import.js",
+    "db:auth:provision-students": "node scripts/provision-supabase-students.js",
+    "test": "node tests/studentAuth.test.js && node tests/studentPerformance.test.js && node tests/promotion.test.js && node tests/attendanceTransfer.test.js && node tests/attendanceSummary.test.js && node tests/exportAttendance.test.js && node tests/attendanceDates.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.43.0",
@@ -20,6 +24,7 @@
     "express-session": "^1.19.0",
     "multer": "^1.4.5-lts.1",
     "pdfkit": "^0.20.1",
+    "pg": "^8.23.1",
     "sqlite3": "5.1.7",
     "swagger-ui-express": "^5.0.1",
     "xlsx": "^0.18.5"

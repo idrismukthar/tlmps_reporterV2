@@ -1,16 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
-const bcrypt = require("bcryptjs");
+const { signInStudent } = require("../services/studentAuth");
 const { calculatePromotionOutcome } = require("../services/promotion");
 const { getStudentAttendanceSummary } = require("../services/attendanceSummary");
 
-const renderLogin = (res, error = null) =>
-  res.render("student/login", { error });
-const passwordMatches = (student, value, callback) => {
-  if (student.password_hash) return bcrypt.compare(value, student.password_hash, callback);
-  callback(null, String(student.surname || "").toLowerCase() === String(value || "").toLowerCase());
-};
+const renderLogin = (res, error = null, success = null) =>
+  res.render("student/login", { error, success });
 
 const requireStudent = (req, res, next) => {
   if (req.session && req.session.student) return next();
@@ -317,9 +313,7 @@ const buildSessionPerformance = (rows) => {
     }
 
     const termEntry = sessionEntry.terms.get(termKey);
-    if (row.score_id != null || row.total_score != null) {
-      termEntry.rows.push(row);
-    }
+    termEntry.rows.push(row);
   });
 
   return Array.from(groupedSessions.values())
@@ -437,65 +431,51 @@ router.get("/login", (req, res) => renderLogin(res));
 
 router.post("/login", (req, res) => {
   const admissionNo = String(req.body.admission_no || "").trim();
-  const surname = String(req.body.surname || "").trim();
-  if (!admissionNo || !surname)
-    return renderLogin(res, "Enter your admission number and surname.");
-
-  db.get(
-    `SELECT s.admission_no, s.surname, s.password_hash
-     FROM students s
-     WHERE s.admission_no = ?
-     LIMIT 1`,
-    [admissionNo],
-    (err, student) => {
-      if (err || !student) return renderLogin(res, "Invalid admission number or password.");
-      passwordMatches(student, surname, (matchErr, matches) => {
-        if (matchErr || !matches) return renderLogin(res, "Invalid admission number or password.");
-        req.session.student = { admission_no: student.admission_no };
-        res.redirect("/portal");
-      });
-    },
-  );
-});
-
-router.get("/forgot-password", (req, res) => res.render("student/forgot-password", { error: null, result: null, resetReady: false }));
-router.post("/forgot-password", (req, res) => {
-  const action = req.body.action;
-  const phone = String(req.body.phone_number || "").trim();
-  const admissionNo = String(req.body.admission_no || "").trim();
-  const currentPassword = String(req.body.current_password || "").trim();
-  const render = (error = null, result = null, resetReady = false) => res.render("student/forgot-password", { error, result, resetReady });
-  if (!phone) return render("Enter the parent phone number.");
-  if (action === "reset") {
-    if (!admissionNo) return render("Enter the admission number to reset the password.");
-    return db.get("SELECT admission_no, phone_number FROM students WHERE admission_no = ? AND phone_number = ?", [admissionNo, phone], (err, student) => {
-      if (err || !student) return render("We could not verify those details.");
-      req.session.passwordRecovery = { admission_no: student.admission_no, expires: Date.now() + 10 * 60 * 1000 };
-      render(null, null, true);
-    });
+  const password = String(req.body.password || req.body.surname || "").trim();
+  if (!admissionNo || !password) {
+    return renderLogin(res, "Enter your admission number and password.");
   }
-  if (!currentPassword) return render("Enter the current password to recover the admission number.");
-  db.get("SELECT admission_no, surname, password_hash FROM students WHERE phone_number = ?", [phone], (err, student) => {
-    if (err || !student) return render("We could not verify those details.");
-    passwordMatches(student, currentPassword, (matchErr, matches) => {
-      if (matchErr || !matches) return render("We could not verify those details.");
-      render(null, student.admission_no, false);
+
+  signInStudent(admissionNo, password)
+    .then((user) => {
+      req.session.regenerate((sessionError) => {
+        if (sessionError) {
+          console.error("Could not renew the student session.");
+          return res.status(500).render("student/login", {
+            error: "Unable to start your session. Please try again.",
+            success: null,
+          });
+        }
+        req.session.student = {
+          admission_no: user.app_metadata.admission_no,
+        };
+        req.session.save((saveError) => {
+          if (saveError) {
+            console.error("Could not save the authenticated student session.");
+            return res.status(500).render("student/login", {
+              error: "Unable to start your session. Please try again.",
+              success: null,
+            });
+          }
+          res.redirect("/portal");
+        });
+      });
+    })
+    .catch((error) => {
+      if (error.status === 400 || error.status === 401) {
+        return renderLogin(res, "Invalid admission number or password.");
+      }
+      console.error("Supabase student sign-in failed:", error.code || "unknown");
+      return res.status(503).render("student/login", {
+        error: "Student sign-in is temporarily unavailable. Please try again later.",
+        success: null,
+      });
     });
-  });
 });
-router.post("/reset-password", (req, res) => {
-  const recovery = req.session.passwordRecovery;
-  const password = String(req.body.password || "");
-  if (!recovery || recovery.expires < Date.now()) return res.redirect("/forgot-password");
-  if (password.length < 8 || password !== req.body.confirm_password) return res.render("student/forgot-password", { error: "Use matching passwords of at least 8 characters.", result: null, resetReady: true });
-  bcrypt.hash(password, 12, (err, hash) => {
-    if (err) return res.render("student/forgot-password", { error: "Could not reset the password. Please try again.", result: null, resetReady: true });
-    db.run("UPDATE students SET password_hash = ? WHERE admission_no = ?", [hash, recovery.admission_no], () => {
-      delete req.session.passwordRecovery;
-      res.render("student/login", { error: null, success: "Password reset successfully. Please log in." });
-    });
-  });
-});
+
+router.get("/forgot-password", (req, res) =>
+  res.render("student/forgot-password"),
+);
 
 router.get("/logout", (req, res) => {
   delete req.session.student;

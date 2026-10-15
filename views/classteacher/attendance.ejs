@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Class Attendance</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #eef3f7; margin: 0; color: #20313b; }
+        .nav { background: #16425b; color: #fff; padding: 16px max(18px, calc((100% - 1050px) / 2)); display: flex; justify-content: space-between; gap: 16px; }
+        .nav a { color: #fff; }
+        .wrap { max-width: 1050px; margin: auto; padding: 24px 18px; }
+        .panel { background: #fff; border: 1px solid #d8e2e8; border-radius: 8px; padding: 20px; margin-bottom: 18px; }
+        .toolbar, .bulk { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+        .toolbar > * { flex: 1; }
+        label { display: block; font-weight: bold; font-size: 13px; margin-bottom: 6px; }
+        input, select, button { box-sizing: border-box; padding: 10px; border: 1px solid #b8c5cd; border-radius: 4px; font: inherit; }
+        button { background: #176b87; color: #fff; border: 0; font-weight: bold; cursor: pointer; }
+        .bulk button { width: auto; }
+        .holiday { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+        .holiday input { width: auto; }
+        .holiday-name { margin-top: 12px; max-width: 420px; }
+        .table-scroll { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 11px; border-bottom: 1px solid #e4eaee; text-align: left; }
+        th { background: #f1f6f8; }
+        td select { width: 160px; }
+        .save { position: sticky; bottom: 14px; padding: 13px 20px; box-shadow: 0 4px 12px #16425b40; }
+        .saved { background: #e6f7eb; color: #166534; padding: 10px; margin-bottom: 15px; border-radius: 4px; }
+        .empty { padding: 20px; text-align: center; color: #52636d; }
+        @media (max-width: 600px) { .toolbar { display: block; } .toolbar > * { display: block; margin-bottom: 10px; } }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <strong><%= term.session_name %> | <%= term.term_name %> | <%= className.slice(0, 3) %> <%= className.slice(3) %></strong>
+        <a href="/classteacher/dashboard">Dashboard</a>
+    </nav>
+    <main class="wrap">
+        <h1>Daily attendance</h1>
+        <% if (query && query.saved) { %><div class="saved" role="status">Attendance saved successfully.</div><% } %>
+        <section class="panel">
+            <form class="toolbar" method="GET" action="/classteacher/attendance/<%= term.session_id %>/<%= term.term_id %>">
+                <div>
+                    <label for="date">Attendance date</label>
+                    <select id="date" name="date" onchange="this.form.submit()">
+                        <% dates.forEach((date) => { %>
+                            <option value="<%= date %>" <%= date === selectedDate ? "selected" : "" %>><%= date %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div><strong>Selected day:</strong> <%= selectedDate %></div>
+            </form>
+        </section>
+        <form method="POST" action="/classteacher/attendance/<%= term.session_id %>/<%= term.term_id %>">
+            <input type="hidden" name="selected_date" value="<%= selectedDate %>">
+            <section class="panel">
+                <div class="bulk">
+                    <button type="button" data-mark="P">Mark all present</button>
+                    <button type="button" data-mark="A">Mark all absent</button>
+                    <button type="button" data-mark="">Clear all marks</button>
+                </div>
+                <label class="holiday">
+                    <input type="checkbox" name="is_holiday" value="1" <%= day && day.is_holiday ? "checked" : "" %>>
+                    Mark this as a school holiday
+                </label>
+                <div class="holiday-name">
+                    <label for="holiday_name">Holiday name (optional)</label>
+                    <input id="holiday_name" name="holiday_name" type="text" maxlength="120" value="<%= day && day.holiday_name ? day.holiday_name : "" %>" placeholder="e.g. Public holiday">
+                </div>
+            </section>
+            <section class="panel table-scroll">
+                <% if (!students.length) { %>
+                    <div class="empty">No enrolled students were found for this class and session.</div>
+                <% } else { %>
+                    <table>
+                        <thead><tr><th>Admission number</th><th>Student</th><th>Gender</th><th>Attendance</th></tr></thead>
+                        <tbody>
+                            <% students.forEach((student) => { %>
+                                <tr>
+                                    <td><strong><%= student.admission_no %></strong></td>
+                                    <td><%= student.surname %>, <%= [student.middle_name, student.last_name].filter(Boolean).join(" ") %></td>
+                                    <td><%= student.gender || "-" %></td>
+                                    <td>
+                                        <select class="attendance-mark" name="attendance[<%= student.admission_no %>]">
+                                            <option value="" <%= !student.status ? "selected" : "" %>>Not recorded</option>
+                                            <option value="P" <%= student.status === "P" ? "selected" : "" %>>Present</option>
+                                            <option value="A" <%= student.status === "A" ? "selected" : "" %>>Absent</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        </tbody>
+                    </table>
+                <% } %>
+            </section>
+            <button class="save" type="submit">Save attendance</button>
+        </form>
+    </main>
+    <script>
+        document.querySelectorAll("[data-mark]").forEach((button) => {
+            button.addEventListener("click", () => {
+                document.querySelectorAll(".attendance-mark").forEach((select) => {
+                    select.value = button.dataset.mark;
+                });
+            });
+        });
+    </script>
+</body>
+</html>

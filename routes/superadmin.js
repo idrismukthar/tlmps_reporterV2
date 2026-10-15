@@ -17,6 +17,8 @@ const {
   defaultDatabasePath,
   importAttendance,
 } = require("../services/attendanceTransfer");
+const postgresActive =
+  process.env.DB_DRIVER === "postgres" || Boolean(process.env.DATABASE_URL);
 
 const attendanceTransferUpload = multer({
   storage: multer.memoryStorage(),
@@ -817,7 +819,7 @@ router.get("/student/:admission_no", (req, res) => {
           `SELECT subjects.* FROM subjects
            JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id
            WHERE student_subject_selections.admission_no = ?
-             AND (student_subject_selections.session_id = ? OR (? IS NULL AND student_subject_selections.session_id IS NULL))
+             AND (student_subject_selections.session_id = ? OR (CAST(? AS INTEGER) IS NULL AND student_subject_selections.session_id IS NULL))
            ORDER BY subject_name ASC`,
           [adm, targetSessionId, targetSessionId],
           (err, enrolledSubjects) => {
@@ -1077,7 +1079,7 @@ router.get("/download-pdf/:admission_no", (req, res) => {
           `SELECT subjects.* FROM subjects
            JOIN student_subject_selections ON subjects.subject_id = student_subject_selections.subject_id
            WHERE student_subject_selections.admission_no = ?
-             AND (student_subject_selections.session_id = ? OR (? IS NULL AND student_subject_selections.session_id IS NULL))
+             AND (student_subject_selections.session_id = ? OR (CAST(? AS INTEGER) IS NULL AND student_subject_selections.session_id IS NULL))
            ORDER BY subject_name ASC`,
           [adm, targetSessionId, targetSessionId],
           (err, enrolledSubjects) => {
@@ -1672,17 +1674,25 @@ const attendanceTerm = (sessionId, termId, callback) => {
   );
 };
 
-router.get("/attendance/import", (req, res) => {
+router.get("/attendance/import", requireAuth, (req, res) => {
   const token = crypto.randomBytes(32).toString("hex");
   req.session.attendanceImportToken = token;
   req.session.attendanceImportTokenExpiresAt = Date.now() + 15 * 60 * 1000;
-  res.render("superadmin/attendance/import", { token });
+  res.render("superadmin/attendance/import", { token, postgresActive });
 });
 
 router.post(
   "/attendance/import",
+  requireAuth,
   attendanceTransferUpload.single("attendanceFile"),
   async (req, res) => {
+    if (postgresActive) {
+      return res.status(409).render("superadmin/attendance/import-result", {
+        error:
+          "This importer only writes to the legacy SQLite database. It is disabled while Supabase Postgres is active to prevent attendance data from being split between databases.",
+        result: null,
+      });
+    }
     const isTokenValid =
       typeof req.session.attendanceImportToken === "string" &&
       req.session.attendanceImportToken === req.body.token &&

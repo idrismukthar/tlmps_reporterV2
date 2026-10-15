@@ -13,14 +13,18 @@
   <main class="wrap">
     <section class="card">
       <h1>Import local attendance</h1>
-      <p>Choose the attendance-only JSON export made from the computer where attendance was marked.</p>
-      <div class="notice">This file contains only attendance plus the minimal roster fields (admission number, name, class, department, gender) and session enrollments for students referenced by those attendance records. It does not contain passwords, contact information, NIN, or LASSRA.</div>
-      <div class="warning">This local export is the source of truth for the records it contains. Conflicting names, class details, enrollment status, holiday dates, and attendance marks will be updated to match it. Render-only records not included in the export are preserved. All sessions and terms must already exist on Render; if they do not match, the whole import is rejected without changes.</div>
-      <form method="POST" action="/superadmin/attendance/import" enctype="multipart/form-data">
-        <input type="hidden" name="token" value="<%= token %>">
-        <input type="file" name="attendanceFile" accept=".json,application/json" required>
-        <button type="submit">Import attendance</button>
-      </form>
+      <% if (postgresActive) { %>
+        <div class="warning">Supabase Postgres is active. This uploader only writes to the legacy SQLite database, so it is disabled to prevent attendance from being split between databases.</div>
+      <% } else { %>
+        <p>Choose the attendance-only JSON export made from the computer where attendance was marked.</p>
+        <div class="notice">This file contains only attendance plus the minimal roster fields (admission number, name, class, department, gender) and session enrollments for students referenced by those attendance records. It does not contain passwords, contact information, NIN, or LASSRA.</div>
+        <div class="warning">This local export is the source of truth for the records it contains. Conflicting names, class details, enrollment status, holiday dates, and attendance marks will be updated to match it. Render-only records not included in the export are preserved. All sessions and terms must already exist on Render; if they do not match, the whole import is rejected without changes.</div>
+        <form method="POST" action="/superadmin/attendance/import" enctype="multipart/form-data">
+          <input type="hidden" name="token" value="<%= token %>">
+          <input type="file" name="attendanceFile" accept=".json,application/json" required>
+          <button type="submit">Import attendance</button>
+        </form>
+      <% } %>
     </section>
   </main>
 </body>

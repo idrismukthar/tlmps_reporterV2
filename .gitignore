@@ -9,6 +9,7 @@ tlmps.db
 *.sqlite
 *.sqlite3
 data/
+backups/
 
 # Dependencies
 node_modules/

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
+const { getNextAttendanceWeekday } = require("../services/attendanceDates");
 
 const CLASSES = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"];
 const CLASS_PASSWORDS = {
@@ -19,6 +20,50 @@ const requireClassTeacher = (req, res, next) => {
 
 const renderLogin = (res, error = null) =>
   res.render("classteacher/login", { classes: CLASSES, error });
+
+const parseDate = (value) => {
+  const text = String(value || "").trim();
+  let match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  if (!match) {
+    const legacy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(text);
+    if (legacy) match = [legacy[0], legacy[3], legacy[2], legacy[1]];
+  }
+  if (!match) return null;
+
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getUTCFullYear() !== Number(match[1]) ||
+    date.getUTCMonth() !== Number(match[2]) - 1 ||
+    date.getUTCDate() !== Number(match[3])
+  ) {
+    return null;
+  }
+  return date;
+};
+
+const attendanceWeekdays = (startValue, endValue) => {
+  const start = parseDate(startValue);
+  const end = parseDate(endValue);
+  if (!start || !end || start > end) return [];
+
+  const dates = [];
+  for (
+    const date = new Date(start);
+    date <= end;
+    date.setUTCDate(date.getUTCDate() + 1)
+  ) {
+    const weekday = date.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) {
+      dates.push(date.toISOString().slice(0, 10));
+    }
+  }
+  return dates;
+};
+
+const validRecordId = (value) => /^\d+$/.test(String(value || ""));
 
 router.get("/login", (req, res) => renderLogin(res));
 
@@ -66,6 +111,211 @@ router.get("/dashboard", requireClassTeacher, (req, res) => {
     },
   );
 });
+
+router.get(
+  "/attendance/:sessionId/:termId",
+  requireClassTeacher,
+  (req, res) => {
+    const className = req.session.classTeacher.assignedClass;
+    const { sessionId, termId } = req.params;
+    if (!validRecordId(sessionId) || !validRecordId(termId)) {
+      return res.status(400).send("Invalid academic session or term.");
+    }
+
+    db.get(
+      `SELECT s.session_id, s.session_name, t.term_id, t.term_name,
+              t.term_status, t.resumption_date, t.vacation_date
+       FROM academic_sessions s
+       JOIN academic_terms t ON t.session_id = s.session_id
+       WHERE s.session_id = ? AND t.term_id = ?
+         AND s.is_archived = 0 AND t.term_status = 'Active'`,
+      [sessionId, termId],
+      (termError, term) => {
+        if (termError) return res.status(500).send("Unable to load the active term.");
+        if (!term) return res.status(404).send("Active term not found.");
+
+        const dates = attendanceWeekdays(
+          term.resumption_date,
+          term.vacation_date,
+        );
+        if (!dates.length) {
+          return res.status(400).send(
+            "Set valid term resumption and vacation dates before recording attendance.",
+          );
+        }
+        const requestedDate = String(req.query.date || "");
+        const selectedDate = dates.includes(requestedDate)
+          ? requestedDate
+          : dates.includes(getNextAttendanceWeekday())
+            ? getNextAttendanceWeekday()
+            : dates[0];
+
+        db.all(
+          `SELECT e.admission_no, s.surname, s.middle_name, s.last_name,
+                  s.gender, ar.status
+           FROM academic_session_enrollments e
+           JOIN students s ON s.admission_no = e.admission_no
+           LEFT JOIN attendance_records ar
+             ON ar.admission_no = e.admission_no
+            AND ar.term_id = ? AND ar.attendance_date = ?
+           WHERE e.session_id = ? AND e.class_name = ?
+             AND e.enrollment_status = 'Enrolled'
+           ORDER BY s.surname, s.last_name, s.middle_name, e.admission_no`,
+          [termId, selectedDate, sessionId, className],
+          (studentsError, students) => {
+            if (studentsError) {
+              return res.status(500).send("Unable to load the class roster.");
+            }
+            db.get(
+              `SELECT is_holiday, holiday_name
+               FROM attendance_days
+               WHERE term_id = ? AND attendance_date = ?`,
+              [termId, selectedDate],
+              (dayError, day) => {
+                if (dayError) {
+                  return res.status(500).send("Unable to load the attendance day.");
+                }
+                res.render("classteacher/attendance", {
+                  className,
+                  term,
+                  dates,
+                  selectedDate,
+                  day,
+                  students: students || [],
+                  query: req.query,
+                });
+              },
+            );
+          },
+        );
+      },
+    );
+  },
+);
+
+router.post(
+  "/attendance/:sessionId/:termId",
+  requireClassTeacher,
+  (req, res) => {
+    const className = req.session.classTeacher.assignedClass;
+    const { sessionId, termId } = req.params;
+    const selectedDate = String(req.body.selected_date || "").trim();
+    const attendance = req.body.attendance || {};
+    const isHoliday = req.body.is_holiday === "1";
+    const holidayName = String(req.body.holiday_name || "").trim();
+    if (!validRecordId(sessionId) || !validRecordId(termId)) {
+      return res.status(400).send("Invalid academic session or term.");
+    }
+    if (!attendance || typeof attendance !== "object" || Array.isArray(attendance)) {
+      return res.status(400).send("Attendance submission is invalid.");
+    }
+
+    db.get(
+      `SELECT s.session_id, s.session_name, t.term_id, t.term_status,
+              t.resumption_date, t.vacation_date
+       FROM academic_sessions s
+       JOIN academic_terms t ON t.session_id = s.session_id
+       WHERE s.session_id = ? AND t.term_id = ?
+         AND s.is_archived = 0 AND t.term_status = 'Active'`,
+      [sessionId, termId],
+      (termError, term) => {
+        if (termError) return res.status(500).send("Unable to validate the active term.");
+        if (!term) return res.status(403).send("Attendance can be changed only in an active term.");
+
+        const dates = attendanceWeekdays(term.resumption_date, term.vacation_date);
+        if (!dates.includes(selectedDate)) {
+          return res.status(400).send("Choose a weekday within this term.");
+        }
+
+        db.all(
+          `SELECT admission_no
+           FROM academic_session_enrollments
+           WHERE session_id = ? AND class_name = ?
+             AND enrollment_status = 'Enrolled'`,
+          [sessionId, className],
+          (rosterError, roster) => {
+            if (rosterError) return res.status(500).send("Unable to verify the class roster.");
+            const allowed = new Set((roster || []).map((student) => student.admission_no));
+            const entries = Object.entries(attendance);
+            if (entries.some(([admissionNo]) => !allowed.has(admissionNo))) {
+              return res.status(400).send("Attendance includes a student outside your assigned class.");
+            }
+            if (entries.some(([, status]) => status !== "" && status !== "P" && status !== "A")) {
+              return res.status(400).send("Each attendance mark must be present or absent.");
+            }
+
+            const marked = entries.filter(([, status]) => status === "P" || status === "A");
+            db.serialize(() => {
+              db.run("BEGIN TRANSACTION");
+              db.run(
+                `INSERT INTO attendance_days
+                   (term_id, attendance_date, is_holiday, holiday_name)
+                 VALUES (?, ?, ?, ?)
+                 ON CONFLICT(term_id, attendance_date)
+                 DO UPDATE SET is_holiday = excluded.is_holiday,
+                               holiday_name = excluded.holiday_name`,
+                [
+                  termId,
+                  selectedDate,
+                  isHoliday ? 1 : 0,
+                  isHoliday ? holidayName || "Holiday" : null,
+                ],
+              );
+              db.run(
+                `DELETE FROM attendance_records
+                 WHERE term_id = ? AND attendance_date = ?
+                   AND admission_no IN (
+                     SELECT admission_no
+                     FROM academic_session_enrollments
+                     WHERE session_id = ? AND class_name = ?
+                       AND enrollment_status = 'Enrolled'
+                   )`,
+                [termId, selectedDate, sessionId, className],
+              );
+
+              if (!isHoliday) {
+                const statement = db.prepare(
+                  `INSERT INTO attendance_records
+                     (term_id, attendance_date, admission_no, status)
+                   VALUES (?, ?, ?, ?)
+                   ON CONFLICT(term_id, attendance_date, admission_no)
+                   DO UPDATE SET status = excluded.status`,
+                );
+                marked.forEach(([admissionNo, status]) => {
+                  statement.run([termId, selectedDate, admissionNo, status]);
+                });
+                statement.finalize((saveError) => {
+                  if (saveError) {
+                    return db.run("ROLLBACK", () =>
+                      res.status(500).send("Attendance could not be saved."),
+                    );
+                  }
+                  db.run("COMMIT", (commitError) => {
+                    if (commitError) {
+                      return res.status(500).send("Attendance could not be saved.");
+                    }
+                    res.redirect(
+                      `/classteacher/attendance/${sessionId}/${termId}?date=${encodeURIComponent(selectedDate)}&saved=1`,
+                    );
+                  });
+                });
+              } else {
+                db.run("COMMIT", (commitError) => {
+                  if (commitError) {
+                    return res.status(500).send("Attendance could not be saved.");
+                  }
+                  res.redirect(
+                    `/classteacher/attendance/${sessionId}/${termId}?date=${encodeURIComponent(selectedDate)}&saved=1`,
+                  );
+                });
+              }
+            });
+          },
+        );
+      },
+    );
+  },
+);
 
 router.get("/remarks/:sessionId/:termId", requireClassTeacher, (req, res) => {
   const { sessionId, termId } = req.params;
@@ -152,6 +402,9 @@ router.post("/remarks/save", requireClassTeacher, (req, res) => {
       const allowed = new Set(
         (allowedRows || []).map((row) => row.admission_no),
       );
+      if (!allowed.size) {
+        return res.status(400).send("There are no enrolled students in this class for the selected session.");
+      }
       db.all(
         `SELECT admission_no,
                 SUM(CASE WHEN status = 'P' THEN 1 ELSE 0 END) AS days_present,
