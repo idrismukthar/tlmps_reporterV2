@@ -465,7 +465,16 @@ router.post("/login", (req, res) => {
       if (error.status === 400 || error.status === 401) {
         return renderLogin(res, "Invalid admission number or password.");
       }
-      console.error("Supabase student sign-in failed:", error.code || "unknown");
+      const errorName = error.name || "unknown";
+      const errorStatus = error.status || "unknown";
+      const errorCode = error.code || "unknown";
+      const errorMessage =
+        error instanceof Error
+          ? error.message.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 200)
+          : "unknown";
+      console.error(
+        `Supabase student sign-in failed: name=${errorName} status=${errorStatus} code=${errorCode} message=${errorMessage}`,
+      );
       return res.status(503).render("student/login", {
         error: "Student sign-in is temporarily unavailable. Please try again later.",
         success: null,
