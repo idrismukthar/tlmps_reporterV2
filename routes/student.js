@@ -1,7 +1,12 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
-const { signInStudent } = require("../services/studentAuth");
+const bcrypt = require("bcryptjs");
+const {
+  signInStudent,
+  initialStudentPassword,
+  InvalidStudentCredentialsError,
+} = require("../services/studentAuth");
 const { calculatePromotionOutcome } = require("../services/promotion");
 const { getStudentAttendanceSummary } = require("../services/attendanceSummary");
 
@@ -427,6 +432,68 @@ const buildAuditMetrics = (rows) => {
   };
 };
 
+const loginStudentSession = (req, res, admissionNo) => {
+  req.session.regenerate((sessionError) => {
+    if (sessionError) {
+      console.error("Could not renew the student session.");
+      return res.status(500).render("student/login", {
+        error: "Unable to start your session. Please try again.",
+        success: null,
+      });
+    }
+    req.session.student = {
+      admission_no: admissionNo,
+    };
+    req.session.save((saveError) => {
+      if (saveError) {
+        console.error("Could not save the authenticated student session.");
+        return res.status(500).render("student/login", {
+          error: "Unable to start your session. Please try again.",
+          success: null,
+        });
+      }
+      res.redirect("/portal");
+    });
+  });
+};
+
+const verifyDatabaseStudent = (admissionNo, password, callback) => {
+  db.get(
+    `SELECT admission_no, surname, password_hash FROM students WHERE admission_no = ?`,
+    [admissionNo],
+    (err, student) => {
+      if (err || !student) return callback(null, false);
+
+      const entered = String(password || "").trim().toLowerCase();
+
+      // 1. If password_hash exists (e.g. from password reset)
+      if (student.password_hash) {
+        return bcrypt.compare(password, student.password_hash, (bcryptErr, matches) => {
+          if (matches) return callback(null, student);
+          try {
+            const expected = initialStudentPassword(student.admission_no, student.surname).toLowerCase();
+            if (entered === expected) return callback(null, student);
+          } catch (e) {}
+          return callback(null, false);
+        });
+      }
+
+      // 2. Default password: surname + last three digits of admission number
+      try {
+        const expected = initialStudentPassword(student.admission_no, student.surname).toLowerCase();
+        if (entered === expected) return callback(null, student);
+      } catch (e) {}
+
+      // 3. Fallback: surname alone
+      if (String(student.surname || "").trim().toLowerCase() === entered) {
+        return callback(null, student);
+      }
+
+      return callback(null, false);
+    },
+  );
+};
+
 router.get("/login", (req, res) => renderLogin(res));
 
 router.post("/login", (req, res) => {
@@ -436,48 +503,38 @@ router.post("/login", (req, res) => {
     return renderLogin(res, "Enter your admission number and password.");
   }
 
+  // Attempt Supabase Auth first
   signInStudent(admissionNo, password)
     .then((user) => {
-      req.session.regenerate((sessionError) => {
-        if (sessionError) {
-          console.error("Could not renew the student session.");
-          return res.status(500).render("student/login", {
-            error: "Unable to start your session. Please try again.",
-            success: null,
-          });
-        }
-        req.session.student = {
-          admission_no: user.app_metadata.admission_no,
-        };
-        req.session.save((saveError) => {
-          if (saveError) {
-            console.error("Could not save the authenticated student session.");
-            return res.status(500).render("student/login", {
-              error: "Unable to start your session. Please try again.",
-              success: null,
-            });
-          }
-          res.redirect("/portal");
-        });
-      });
+      loginStudentSession(req, res, user.app_metadata.admission_no);
     })
     .catch((error) => {
-      if (error.status === 400 || error.status === 401) {
+      // Fallback: Check database credentials directly (surname + last three admission digits)
+      verifyDatabaseStudent(admissionNo, password, (dbErr, student) => {
+        if (student) {
+          return loginStudentSession(req, res, student.admission_no);
+        }
+
+        if (
+          error.status === 400 ||
+          error.status === 401 ||
+          error instanceof InvalidStudentCredentialsError ||
+          (error && error.message && error.message.includes("at least three digits"))
+        ) {
+          return renderLogin(res, "Invalid admission number or password.");
+        }
+
+        const errorName = error.name || "unknown";
+        const errorStatus = error.status || "unknown";
+        const errorCode = error.code || "unknown";
+        const errorMessage =
+          error instanceof Error
+            ? error.message.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 200)
+            : "unknown";
+        console.error(
+          `Supabase student sign-in fallback failed: name=${errorName} status=${errorStatus} code=${errorCode} message=${errorMessage}`,
+        );
         return renderLogin(res, "Invalid admission number or password.");
-      }
-      const errorName = error.name || "unknown";
-      const errorStatus = error.status || "unknown";
-      const errorCode = error.code || "unknown";
-      const errorMessage =
-        error instanceof Error
-          ? error.message.replace(/https?:\/\/\S+/gi, "[url]").slice(0, 200)
-          : "unknown";
-      console.error(
-        `Supabase student sign-in failed: name=${errorName} status=${errorStatus} code=${errorCode} message=${errorMessage}`,
-      );
-      return res.status(503).render("student/login", {
-        error: "Student sign-in is temporarily unavailable. Please try again later.",
-        success: null,
       });
     });
 });

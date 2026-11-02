@@ -45,11 +45,15 @@ async function signInStudent(admissionNo, password) {
     throw new Error("Supabase student authentication is not configured.");
   }
 
+  class DummyWebSocket {}
   const supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
       detectSessionInUrl: false,
       persistSession: false,
+    },
+    realtime: {
+      transport: DummyWebSocket,
     },
   });
   const email = studentAuthEmail(normalizedAdmissionNo);

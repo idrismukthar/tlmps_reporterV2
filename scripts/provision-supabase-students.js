@@ -37,11 +37,15 @@ async function main() {
   }
 
   const database = new Client({ connectionString: databaseUrl });
+  class DummyWebSocket {}
   const admin = createClient(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       detectSessionInUrl: false,
       persistSession: false,
+    },
+    realtime: {
+      transport: DummyWebSocket,
     },
   });
 

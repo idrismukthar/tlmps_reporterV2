@@ -24,7 +24,7 @@ services:
       - key: SUPABASE_PUBLISHABLE_KEY
         sync: false
       - key: NODE_VERSION
-        value: 20.19.1
+        value: 22
       - key: SESSION_SECRET
         generateValue: true
       - key: SUPERADMIN_PASSWORD
