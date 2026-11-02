@@ -291,19 +291,25 @@ const buildSessionPerformance = (rows) => {
     const sessionId =
       row.session_id ?? row.session ?? row.session_name ?? "unknown";
     const sessionName = row.session_name || row.session || "Unknown Session";
-    const className = row.class_name || row.class || "N/A";
+    const scoreClassName = String(row.score_class_name || "").trim() || null;
+    const className = scoreClassName || row.class_name || row.class || "N/A";
 
     if (!groupedSessions.has(sessionId)) {
       groupedSessions.set(sessionId, {
         session_id: sessionId,
         session_name: sessionName,
         class_name: className,
+        hasScoreClassName: Boolean(scoreClassName),
         terms: new Map(),
         subjects: new Set(),
       });
     }
 
     const sessionEntry = groupedSessions.get(sessionId);
+    if (!sessionEntry.hasScoreClassName && scoreClassName) {
+      sessionEntry.class_name = scoreClassName;
+      sessionEntry.hasScoreClassName = true;
+    }
     if (row.subject_name) sessionEntry.subjects.add(row.subject_name);
     const termKey =
       row.term_id ?? `${row.term_name || "Term"}-${row.term_number || 0}`;
@@ -553,6 +559,7 @@ router.get("/audit", requireStudent, (req, res) => {
     if (studentErr || !student) return res.redirect("/logout");
     db.all(
       `SELECT a.session_id, a.session_name AS session, e.class_name AS class,
+              sc.class_name AS score_class_name,
               t.term_id, t.term_name, t.term_number,
               ss.subject_id, sub.subject_name, sub.unit_weight,
               sc.score_id, sc.total_score
@@ -568,14 +575,15 @@ router.get("/audit", requireStudent, (req, res) => {
         AND sc.session_id = e.session_id
         AND sc.term_id = t.term_id
         AND sc.subject_id = ss.subject_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
+       WHERE e.admission_no = ? AND a.is_archived = 0
        ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
       (auditErr, sessionRows) => {
         const detailedRows = auditErr ? [] : sessionRows || [];
 
         db.all(
-          `SELECT a.session_name AS session, e.class_name AS class,
+          `SELECT a.session_name AS session,
+                  COALESCE(NULLIF(MAX(TRIM(sc.class_name)), ''), e.class_name) AS class,
                   COUNT(DISTINCT ss.subject_id) AS totalSubjects,
                   COUNT(DISTINCT CASE WHEN sc.total_score >= 50 THEN ss.subject_id END) AS totalPassed,
                   COALESCE(AVG(sc.total_score), 0) AS average
@@ -588,8 +596,8 @@ router.get("/audit", requireStudent, (req, res) => {
              ON sc.admission_no = e.admission_no
             AND sc.session_id = e.session_id
             AND sc.subject_id = ss.subject_id
-           WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
-           GROUP BY a.session_id, a.session_name, e.class_name
+           WHERE e.admission_no = ? AND a.is_archived = 0
+           GROUP BY a.session_id, a.session_name, e.admission_no, e.class_name
            ORDER BY a.session_id ASC`,
           [student.admission_no],
           (summaryErr, auditData) => {
@@ -610,15 +618,16 @@ router.get("/portal", requireStudent, (req, res) => {
   studentFor(req, (studentErr, student) => {
     if (studentErr || !student) return res.redirect("/logout");
     db.all(
-      `SELECT a.session_id, a.session_name, e.class_name,
+      `SELECT a.session_id, a.session_name,
+              COALESCE(NULLIF(MAX(TRIM(sc.class_name)), ''), e.class_name) AS class_name,
               GROUP_CONCAT(DISTINCT t.term_id || '|' || t.term_name) AS term_list
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
        JOIN student_scores sc ON sc.admission_no = e.admission_no AND sc.session_id = a.session_id
        JOIN academic_terms t ON t.term_id = sc.term_id AND t.session_id = a.session_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
-       GROUP BY a.session_id, a.session_name, e.class_name
-       ORDER BY a.session_id DESC`,
+       WHERE e.admission_no = ? AND a.is_archived = 0
+       GROUP BY a.session_id, a.session_name, e.admission_no, e.class_name
+       ORDER BY a.session_id ASC`,
       [student.admission_no],
       (err, sessions) => {
         const normalizedSessions = (sessions || []).map((session) => ({
@@ -648,6 +657,7 @@ router.get("/profile", requireStudent, (req, res) => {
     if (studentErr || !student) return res.redirect("/logout");
     db.all(
       `SELECT a.session_id, a.session_name, e.class_name,
+              sc.class_name AS score_class_name,
               t.term_id, t.term_name, t.term_number,
               ss.subject_id, sub.subject_name, sub.unit_weight,
               sc.score_id, sc.total_score
@@ -663,7 +673,7 @@ router.get("/profile", requireStudent, (req, res) => {
         AND sc.session_id = e.session_id
         AND sc.term_id = t.term_id
         AND sc.subject_id = ss.subject_id
-       WHERE e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0
+       WHERE e.admission_no = ? AND a.is_archived = 0
        ORDER BY a.session_id ASC, t.term_number ASC, sub.subject_name ASC`,
       [student.admission_no],
       (err, sessionRows) => {
@@ -716,7 +726,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
       `SELECT a.*, e.class_name
        FROM academic_sessions a
        JOIN academic_session_enrollments e ON e.session_id = a.session_id
-       WHERE a.session_id = ? AND e.admission_no = ? AND e.enrollment_status = 'Enrolled' AND a.is_archived = 0`,
+       WHERE a.session_id = ? AND e.admission_no = ? AND a.is_archived = 0`,
       [sessionId, student.admission_no],
       (enrollmentErr, enrollment) => {
         db.get(
@@ -727,6 +737,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
               return res.status(404).send("Result not found");
             db.all(
               `SELECT sub.subject_id, sub.subject_name, sub.unit_weight, sc.score_id,
+                      sc.class_name AS score_class_name,
                       COALESCE(sc.ca_score, 0) AS ca_score,
                       COALESCE(sc.mcq_score, 0) AS mcq_score,
                       COALESCE(sc.theory_score, 0) AS theory_score,
@@ -749,6 +760,11 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                 sessionId,
               ],
               (scoresErr, scores) => {
+                const resultClassName =
+                  (scores || []).find(
+                    (score) =>
+                      score.score_id != null && score.score_class_name,
+                  )?.score_class_name || enrollment.class_name;
                 db.all(
                   `SELECT e.admission_no, e.class_name, ss.subject_id,
                           COALESCE(sc.total_score, 0) AS total_score
@@ -761,11 +777,24 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                     AND sc.session_id = e.session_id
                     AND sc.term_id = ?
                     AND sc.subject_id = ss.subject_id
-                   WHERE e.session_id = ? AND e.class_name = ?
-                     AND e.enrollment_status = 'Enrolled'`,
-                  [termId, sessionId, enrollment.class_name],
+                   WHERE e.session_id = ?
+                     AND e.enrollment_status = 'Enrolled'
+                     AND COALESCE(
+                       NULLIF((
+                         SELECT TRIM(class_score.class_name)
+                         FROM student_scores class_score
+                         WHERE class_score.admission_no = e.admission_no
+                           AND class_score.session_id = e.session_id
+                           AND class_score.term_id = ?
+                           AND NULLIF(TRIM(class_score.class_name), '') IS NOT NULL
+                         ORDER BY class_score.score_id
+                         LIMIT 1
+                       ), ''),
+                       e.class_name
+                     ) = ?`,
+                  [termId, sessionId, termId, resultClassName],
                   (rankingErr, rankingRows) => {
-                    const isSenior = /^SSS?/i.test(enrollment.class_name || "");
+                    const isSenior = /^SSS?/i.test(resultClassName || "");
                     const classRows = rankingErr ? [] : rankingRows || [];
                     const subjectScores = new Map();
                     const studentTotals = new Map();
@@ -979,7 +1008,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                           .toLowerCase()
                           .includes("third term") && promotionOutcome.complete
                           ? buildPromotionMessage(
-                              enrollment.class_name,
+                              resultClassName,
                               promotionOutcome.cumulativeAverage,
                             )
                           : null;
@@ -1013,7 +1042,7 @@ router.get("/view-result/:sessionId/:termId", requireStudent, (req, res) => {
                                 res.render("student/dashboard", {
                                   student: legacyStudent({
                                     ...student,
-                                    class_name: enrollment.class_name,
+                                    class_name: resultClassName,
                                     department:
                                       enrollment.department || student.department,
                                   }),

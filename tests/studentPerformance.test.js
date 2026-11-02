@@ -73,6 +73,42 @@ assert.equal(Number(built[0].terms[1].gpa), 2.75);
 assert.equal(Number(built[0].cgpa), 3.63);
 assert.equal(built[1].class_name, "SSS2");
 assert.equal(Number(built[1].cgpa), 5);
+
+const historicalClasses = ["JSS1", "JSS2", "JSS3", "SSS1", "SSS2", "SSS3"];
+const historicalClassRows = historicalClasses.flatMap((className, index) => [
+  {
+    session_id: index + 10,
+    session_name: `201${index}/201${index + 1}`,
+    class_name: "SSS3",
+    term_id: index + 100,
+    term_name: "First Term",
+    term_number: 1,
+    subject_id: 1,
+    unit_weight: 1,
+    score_id: null,
+    total_score: null,
+  },
+  {
+    session_id: index + 10,
+    session_name: `201${index}/201${index + 1}`,
+    class_name: "SSS3",
+    score_class_name: className,
+    term_id: index + 100,
+    term_name: "First Term",
+    term_number: 1,
+    subject_id: 1,
+    unit_weight: 1,
+    score_id: index + 1,
+    total_score: 76,
+  },
+]);
+const historicalSummaries =
+  studentRoutes.buildSessionPerformance(historicalClassRows);
+assert.deepEqual(
+  historicalSummaries.map((session) => session.class_name),
+  historicalClasses,
+  "Recorded results should retain the correct class for JSS and SSS students",
+);
 console.log("studentPerformance test passed");
 
 const incompleteTerm = studentRoutes.buildSessionPerformance([
